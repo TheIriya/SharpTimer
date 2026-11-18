@@ -21,6 +21,7 @@ namespace SharpTimer
     {
         public HookResult TriggerMultiple_OnStartTouch(CEntityIOOutput output, string name, CEntityInstance activator, CEntityInstance caller, CVariant value, float delay)
         {
+            if (!IsEnabled) return HookResult.Continue;
             try
             {
                 if (activator == null || caller == null)
@@ -69,7 +70,7 @@ namespace SharpTimer
                         int hookStyle = playerTimers[slot].currentStyle;
                         string hookMode = playerTimers[slot].Mode;
                         string hookSpeed = GetCurrentPlayerSpeed(player);
-                        _ = Task.Run(async () => await HandlePlayerStageTimes(player, callerHandle, slot, steamID, playerName, hookStyle, hookMode, playerValid, hookSpeed));
+                        _ = RunEnabled(async () => await AwaitEnabled(HandlePlayerStageTimes(player, callerHandle, slot, steamID, playerName, hookStyle, hookMode, playerValid, hookSpeed)));
                         return HookResult.Continue;
                     }
                 }
@@ -80,7 +81,7 @@ namespace SharpTimer
                     int hookStyle = playerTimers[slot].currentStyle;
                     string hookMode = playerTimers[slot].Mode;
                     string hookSpeed = GetCurrentPlayerSpeed(player);
-                    _ = Task.Run(async () => await HandlePlayerCheckpointTimes(player, callerHandle, slot, steamID, playerName, hookStyle, hookMode, playerValid, hookSpeed));
+                    _ = RunEnabled(async () => await AwaitEnabled(HandlePlayerCheckpointTimes(player, callerHandle, slot, steamID, playerName, hookStyle, hookMode, playerValid, hookSpeed)));
                     return HookResult.Continue;
                 }
 
@@ -90,7 +91,7 @@ namespace SharpTimer
                     int hookStyle = playerTimers[slot].currentStyle;
                     string hookMode = playerTimers[slot].Mode;
                     string hookSpeed = GetCurrentPlayerSpeed(player);
-                    _ = Task.Run(async () => await HandlePlayerBonusCheckpointTimes(player, callerHandle, slot, steamID, playerName, hookStyle, hookMode, playerValid, hookSpeed));
+                    _ = RunEnabled(async () => await AwaitEnabled(HandlePlayerBonusCheckpointTimes(player, callerHandle, slot, steamID, playerName, hookStyle, hookMode, playerValid, hookSpeed)));
                     return HookResult.Continue;
                 }
 
@@ -189,6 +190,7 @@ namespace SharpTimer
 
         public HookResult TriggerMultiple_OnEndTouch(CEntityIOOutput output, string name, CEntityInstance activator, CEntityInstance caller, CVariant value, float delay)
         {
+if (!IsEnabled) return HookResult.Continue;
 
             try
             {
@@ -285,6 +287,7 @@ namespace SharpTimer
 
         public HookResult TriggerTeleport_OnStartTouch(CEntityIOOutput output, string name, CEntityInstance activator, CEntityInstance caller, CVariant value, float delay)
         {
+if (!IsEnabled) return HookResult.Continue;
 
             try
             {
@@ -324,6 +327,7 @@ namespace SharpTimer
 
         public HookResult TriggerTeleport_OnEndTouch(CEntityIOOutput output, string name, CEntityInstance activator, CEntityInstance caller, CVariant value, float delay)
         {
+            if (!IsEnabled) return HookResult.Continue;
             try
             {
                 if (activator == null || caller == null)

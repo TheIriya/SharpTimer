@@ -61,7 +61,8 @@ namespace SharpTimer
                         if (cad.AttributeType.Name == "ConsoleCommandAttribute" && cad.ConstructorArguments.Count >= 1)
                         {
                             var arg0 = cad.ConstructorArguments[0].Value;
-                            if (arg0 is string commandName && commandName.StartsWith("sharptimer_", StringComparison.OrdinalIgnoreCase))
+                            if (arg0 is string commandName && commandName.StartsWith("sharptimer_", StringComparison.OrdinalIgnoreCase)
+                                && commandName != "sharptimer_hud_reload")
                                 expected.Add(commandName);
                         }
                     }
@@ -80,6 +81,24 @@ namespace SharpTimer
             {
                 Utils.LogError($"Error in CheckMissingFakeConvars: {ex.Message}");
             }
+        }
+
+        [ConsoleCommand("sharptimer_give_default_weapons", "Give a knife and pistol to unarmed players. False preserves map loadouts. Default: false")]
+        [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
+        public void SharpTimerGiveDefaultWeaponsConvar(CCSPlayerController? player, CommandInfo command)
+        {
+            if (player != null) return;
+            string args = command.ArgString.Trim();
+            if (args.Length == 0)
+            {
+                command.ReplyToCommand($"sharptimer_give_default_weapons = {(giveDefaultWeapons ? 1 : 0)}");
+                return;
+            }
+
+            if (args == "1") giveDefaultWeapons = true;
+            else if (args == "0") giveDefaultWeapons = false;
+            else if (bool.TryParse(args, out bool enabled)) giveDefaultWeapons = enabled;
+            else command.ReplyToCommand("Usage: sharptimer_give_default_weapons <0|1|false|true>");
         }
 
         [ConsoleCommand("sharptimer_hostname", "Default Server Hostname.")]
@@ -1386,6 +1405,7 @@ namespace SharpTimer
             string args = command.ArgString;
 
             disableDamage = bool.TryParse(args, out bool disableDamageValue) ? disableDamageValue : args != "0" && disableDamage;
+            UpdateDamageHook();
         }
 
         [ConsoleCommand("sharptimer_remove_collision", "Whether Player collision should be removed or not. Default value: true")]

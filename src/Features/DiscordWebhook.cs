@@ -27,7 +27,7 @@ namespace SharpTimer
         {
             try
             {
-                using JsonDocument? jsonConfig = await Utils.LoadJson(discordURLpath)!;
+                using JsonDocument? jsonConfig = await AwaitEnabled(Utils.LoadJson(discordURLpath)!);
                 if (jsonConfig != null)
                 {
                     JsonElement root = jsonConfig.RootElement;
@@ -111,7 +111,7 @@ namespace SharpTimer
                     return;
                 }
 
-                string mapImg = await GetMapImage(bonusX);
+                string mapImg = await AwaitEnabled(GetMapImage(bonusX));
                 bool isFirstTime = string.IsNullOrEmpty(timeDifference);
                 string style = GetNamedStyle(styleId);
 
@@ -236,7 +236,7 @@ namespace SharpTimer
                     embed.Add("color", discordWebhookColor);
 
                 if (discordWebhookSteamAvatar)
-                    embed.Add("thumbnail", new { url = await GetAvatarLink($"https://steamcommunity.com/profiles/{steamID}/?xml=1") });
+                    embed.Add("thumbnail", new { url = await AwaitEnabled(GetAvatarLink($"https://steamcommunity.com/profiles/{steamID}/?xml=1")) });
 
                 var payload = new
                 {
@@ -253,7 +253,8 @@ namespace SharpTimer
                 if (discordWebhookDisableStyleRecords && style != "Normal")
                     return;
 
-                HttpResponseMessage response = await client.PostAsync(webhookURL, data);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync(webhookURL, data,RuntimeToken));
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -333,7 +334,7 @@ namespace SharpTimer
                     embed.Add("color", discordWebhookColor);
 
                 if (discordWebhookSteamAvatar)
-                    embed.Add("thumbnail", new { url = await GetAvatarLink($"https://steamcommunity.com/profiles/{steamId}/?xml=1") });
+                    embed.Add("thumbnail", new { url = await AwaitEnabled(GetAvatarLink($"https://steamcommunity.com/profiles/{steamId}/?xml=1")) });
 
                 var payload = new
                 {
@@ -347,7 +348,8 @@ namespace SharpTimer
                 var json = JsonSerializer.Serialize(payload);
                 var data = new StringContent(json, Encoding.UTF8, "application/json");
 
-                HttpResponseMessage response = await client.PostAsync(webhookURL, data);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync(webhookURL, data,RuntimeToken));
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -375,7 +377,7 @@ namespace SharpTimer
             try
             {
                 using var client = new HttpClient();
-                if (!await Is404(client, imageRepo))
+                if (!await AwaitEnabled(Is404(client, imageRepo)))
                 {
                     return imageRepo;
                 }
@@ -395,7 +397,7 @@ namespace SharpTimer
         {
             try
             {
-                var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, url));
+                var response = await Instance.AwaitEnabled(client.SendAsync(new HttpRequestMessage(HttpMethod.Head, url),Instance.RuntimeToken));
 
                 return response.StatusCode == HttpStatusCode.NotFound;
             }
@@ -410,9 +412,9 @@ namespace SharpTimer
             try
             {
                 using var client = new HttpClient();
-                HttpResponseMessage response = await client.GetAsync(xmlUrl);
+                HttpResponseMessage response = await AwaitEnabled(client.GetAsync(xmlUrl));
                 response.EnsureSuccessStatusCode();
-                string xmlContent = await response.Content.ReadAsStringAsync();
+                string xmlContent = await AwaitEnabled(response.Content.ReadAsStringAsync());
 
                 var xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(xmlContent);

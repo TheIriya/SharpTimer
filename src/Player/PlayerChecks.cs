@@ -23,7 +23,7 @@ namespace SharpTimer
     {
         public bool IsAllowedPlayer(CCSPlayerController? player)
         {
-            if (player == null)
+            if (!IsEnabled || player == null)
                 return false;
 
             if (playerTimers.TryGetValue(player.Slot, out var playTimer))
@@ -42,7 +42,7 @@ namespace SharpTimer
 
         private bool IsAllowedSpectator(CCSPlayerController? player)
         {
-            if (player == null)
+            if (!IsEnabled || player == null)
                 return false;
 
             bool isConnected = connectedPlayers.ContainsKey(player.Slot) && playerTimers.ContainsKey(player.Slot);
@@ -54,7 +54,7 @@ namespace SharpTimer
 
         public bool IsPlayerOrSpectator(CCSPlayerController? player)
         {
-            if (player == null)
+            if (!IsEnabled || player == null)
                 return false;
 
             return IsAllowedPlayer(player) || IsAllowedSpectator(player);

@@ -46,7 +46,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Records/Submit", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Records/Submit", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -82,7 +83,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Points/SubmitPlayerPoints", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Points/SubmitPlayerPoints", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -116,7 +118,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Player/UpdatePlayer", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Player/UpdatePlayer", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -150,7 +153,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Points/UpdateTotalPoints", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Points/UpdateTotalPoints", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -184,11 +188,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Player/GetPlayerID", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Player/GetPlayerID", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         if (jsonDoc.RootElement.TryGetProperty("data", out var data) && data.ValueKind != JsonValueKind.Null)
@@ -226,11 +231,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Server/GetServerID", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Server/GetServerID", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         if (jsonDoc.RootElement.TryGetProperty("data", out var data) && data.ValueKind != JsonValueKind.Null)
@@ -267,11 +273,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Map/GetMapID", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Map/GetMapID", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         if (jsonDoc.RootElement.TryGetProperty("data", out var data) && data.ValueKind != JsonValueKind.Null)
@@ -314,7 +321,7 @@ namespace SharpTimer
             if (_defaultMaps.Contains(mapNameForLookup))
                 return 0;
 
-            string? workshopId = await GetWorkshopIdAsync(mapNameForLookup);
+            string? workshopId = await AwaitEnabled(GetWorkshopIdAsync(mapNameForLookup));
             if (!string.IsNullOrEmpty(workshopId) && long.TryParse(workshopId, out long addonId))
             {
                 WorkShop_iD = workshopId;
@@ -332,10 +339,10 @@ namespace SharpTimer
                 string encodedMapName = Uri.EscapeDataString(mapName);
                 string searchUrl = $"https://steamcommunity.com/workshop/browse/?appid=730&searchtext={encodedMapName}&childpublishedfileid=0&browsesort=textsearch";
                 
-                HttpResponseMessage response = await _httpClient.GetAsync(searchUrl);
+                HttpResponseMessage response = await AwaitEnabled(_httpClient.GetAsync(searchUrl));
                 response.EnsureSuccessStatusCode();
                 
-                string html = await response.Content.ReadAsStringAsync();
+                string html = await AwaitEnabled(response.Content.ReadAsStringAsync());
                 var htmlDoc = new HtmlDocument();
                 htmlDoc.LoadHtml(html);
 
@@ -380,7 +387,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Map/VerifyMap", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Map/VerifyMap", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -421,12 +429,12 @@ namespace SharpTimer
             if (!players.Any() && !initial)
                 return;
             
-            var sortedStandardRecords = await GetSortedRecordsFromGlobal("Normal", "Standard", 0, 10);
-            var sorted85tRecords = await GetSortedRecordsFromGlobal("Normal", "85t", 0, 10);
-            var sorted102tRecords = await GetSortedRecordsFromGlobal("Normal", "102t", 0, 10);
-            var sorted128tRecords = await GetSortedRecordsFromGlobal("Normal", "128t", 0, 10);
-            var sortedSourceRecords = await GetSortedRecordsFromGlobal("Normal", "Source", 0, 10);
-            var sortedBhopRecords = await GetSortedRecordsFromGlobal("Normal", "Bhop", 0, 10);
+            var sortedStandardRecords = await AwaitEnabled(GetSortedRecordsFromGlobal("Normal", "Standard", 0, 10));
+            var sorted85tRecords = await AwaitEnabled(GetSortedRecordsFromGlobal("Normal", "85t", 0, 10));
+            var sorted102tRecords = await AwaitEnabled(GetSortedRecordsFromGlobal("Normal", "102t", 0, 10));
+            var sorted128tRecords = await AwaitEnabled(GetSortedRecordsFromGlobal("Normal", "128t", 0, 10));
+            var sortedSourceRecords = await AwaitEnabled(GetSortedRecordsFromGlobal("Normal", "Source", 0, 10));
+            var sortedBhopRecords = await AwaitEnabled(GetSortedRecordsFromGlobal("Normal", "Bhop", 0, 10));
             
             recordCache.CachedStandardWorldRecords = sortedStandardRecords;
             recordCache.Cached85tWorldRecords = sorted85tRecords;
@@ -446,7 +454,7 @@ namespace SharpTimer
             if (!players.Any() && !initial)
                 return;
             
-            var sortedPoints = await GetTopPointsAsync();
+            var sortedPoints = await AwaitEnabled(GetTopPointsAsync());
             recordCache.CachedGlobalPoints = sortedPoints;
         }
 
@@ -475,7 +483,7 @@ namespace SharpTimer
             mapCache.MapID = mapId;
             mapCache.AddonID = addonId;
             mapCache.MapName = mapName;
-            mapCache.Verified = await CheckAddonAsync(addonId);
+            mapCache.Verified = await AwaitEnabled(CheckAddonAsync(addonId));
             Utils.LogDebug("Cached Map Data");
             Utils.LogDebug("Map ID: " + mapCache.MapID);
             Utils.LogDebug("Map Name: " + mapCache.MapName);
@@ -501,11 +509,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Points/GetPoints", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Points/GetPoints", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         var root = jsonDoc.RootElement;
@@ -560,11 +569,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Records/GetID", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Records/GetID", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         if (jsonDoc.RootElement.TryGetProperty("data", out var data) && data.ValueKind != JsonValueKind.Null)
@@ -609,11 +619,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Points/GetRank", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Points/GetRank", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         if (jsonDoc.RootElement.TryGetProperty("data", out var data) &&
@@ -655,8 +666,8 @@ namespace SharpTimer
             if (apiKey == "")
                 return;
             
-            var (points, rank, totalPlayers) = await GetGlobalRank(slot);
-            Server.NextFrame(() =>
+            var (points, rank, totalPlayers) = await AwaitEnabled(GetGlobalRank(slot));
+            NextFrameEnabled(() =>
             {
                 if (!IsPlayerOrSpectator(player)) return;
                 if (totalPlayers == 0)
@@ -685,7 +696,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Replays/Upload", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Replays/Upload", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -712,9 +724,9 @@ namespace SharpTimer
                     || recordCache.Cached128tWorldRecords is null
                     || recordCache.CachedSourceWorldRecords is null
                     || recordCache.CachedBhopWorldRecords is null)
-                    _ = Task.Run(async () => await CacheWorldRecords());
+                    _ = RunEnabled(async () => await AwaitEnabled(CacheWorldRecords()));
                 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     Utils.PrintToChat(player, Localizer["current_wr", currentMapName!]);
 
@@ -772,9 +784,9 @@ namespace SharpTimer
             try
             {
                 if (recordCache.CachedGlobalPoints is null)
-                    _ = Task.Run(async () => await CacheGlobalPoints());
+                    _ = RunEnabled(async () => await AwaitEnabled(CacheGlobalPoints()));
                 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     Utils.PrintToChat(player, Localizer["top_10_points"]);
 
@@ -801,7 +813,7 @@ namespace SharpTimer
                 return null!;
             
             Utils.LogDebug($"Trying GetSortedRecordsFromGlobal {(bonus != 0 ? $"bonus {bonus}" : "")}");
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 var payload = new
                 {
@@ -821,11 +833,12 @@ namespace SharpTimer
                     client.DefaultRequestHeaders.Clear();
                     client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                    HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Records/Sort", content);
+                    RequireEnabled();
+                    HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Records/Sort", content,RuntimeToken));
 
                     if (response.IsSuccessStatusCode)
                     {
-                        var json = await response.Content.ReadAsStringAsync();
+                        var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                         using (var jsonDoc = JsonDocument.Parse(json))
                         {
                             var root = jsonDoc.RootElement;
@@ -894,11 +907,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Replays/Download", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Replays/Download", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadAsStringAsync();
+                    return await AwaitEnabled(response.Content.ReadAsStringAsync());
                 }
                 else
                 {
@@ -938,11 +952,12 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Records/GetPB", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Records/GetPB", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var json = await response.Content.ReadAsStringAsync();
+                    var json = await AwaitEnabled(response.Content.ReadAsStringAsync());
                     using (var jsonDoc = JsonDocument.Parse(json))
                     {
                         var root = jsonDoc.RootElement;
@@ -987,7 +1002,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Checks/Key", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Checks/Key", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -1024,7 +1040,8 @@ namespace SharpTimer
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Add("x-secret-key", apiKey);
 
-                HttpResponseMessage response = await client.PostAsync($"{apiUrl}/Checks/Hash", content);
+                RequireEnabled();
+                HttpResponseMessage response = await AwaitEnabled(client.PostAsync($"{apiUrl}/Checks/Hash", content,RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {

@@ -79,12 +79,12 @@ namespace SharpTimer
                 {
                     playerTimer.YawSpikeFlagged = true;
                     StartStopRecord(player, "Unusually frequent m_yaw accel spikes (Strafe optimizer)");
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         if (player == null || !player.IsValid) return;
                         var sid = player.SteamID.ToString();
                         var pn = player.PlayerName;
-                        _ = Task.Run(async () => await DiscordACMessage(sid, pn, "Unusually frequent m_yaw accel spikes (Strafe optimizer)"));
+                        _ = RunEnabled(async () => await AwaitEnabled(DiscordACMessage(sid, pn, "Unusually frequent m_yaw accel spikes (Strafe optimizer)")));
                     });
                     Utils.ConPrint($"::::BEGIN:::: Yaw Accel Spike % of Total");
                     foreach (var percent in playerTimer.YawAccelPercents)
@@ -102,12 +102,12 @@ namespace SharpTimer
                 {
                     playerTimer.PerfectStrafesFlagged = true;
                     StartStopRecord(player, "Unusually frequent perfect strafe/inputs (Autostrafe)");
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         if (player == null || !player.IsValid) return;
                         var sid = player.SteamID.ToString();
                         var pn = player.PlayerName;
-                        _ = Task.Run(async () => await DiscordACMessage(sid, pn, "Unusually frequent perfect strafe/inputs (Autostrafe)"));
+                        _ = RunEnabled(async () => await AwaitEnabled(DiscordACMessage(sid, pn, "Unusually frequent perfect strafe/inputs (Autostrafe)")));
                     });
                 }
             }
@@ -133,12 +133,12 @@ namespace SharpTimer
             {
                 StartStopRecord(player, "Mismatched Inputs (Strafe sync/autostrafe)");
                 playerTimers[player.Slot].MismatchedInputsFlagged = true;
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     if (player == null || !player.IsValid) return;
                     var sid = player.SteamID.ToString();
                     var pn = player.PlayerName;
-                    _ = Task.Run(async () => await DiscordACMessage(sid, pn, "Mismatched Inputs (Strafe sync/autostrafe)"));
+                    _ = RunEnabled(async () => await AwaitEnabled(DiscordACMessage(sid, pn, "Mismatched Inputs (Strafe sync/autostrafe)")));
                 });
             }
 
@@ -185,7 +185,7 @@ namespace SharpTimer
         }
         private void StartStopRecord(CCSPlayerController player, string reason)
         {
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 demos = Path.Join(gameDir, "csgo/demos");
                 if(!Directory.Exists(demos))
@@ -195,8 +195,8 @@ namespace SharpTimer
                 var file = $"{currentMapName}_{name}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 Utils.ConPrint($"[AC] Unusal input detected, demo will be available at demos/{file} in 60 seconds");
                 Utils.ConPrint($"[AC] Reason: {reason}");
-                Server.ExecuteCommand($"tv_record demos/{file}");
-                AddTimer(60.0f, () => Server.ExecuteCommand("tv_stoprecord"));
+                ExecuteEnabledCommand($"tv_record demos/{file}");
+                AddEnabledTimer(60.0f, () => ExecuteEnabledCommand("tv_stoprecord"));
             });
         }
 
@@ -205,6 +205,7 @@ namespace SharpTimer
         [RequiresPermissions("@css/cheats")]
         public void GetFlaggedCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player)) return;
             demos = Path.Join(gameDir, "csgo/demos");
             if(!Directory.Exists(demos))
@@ -214,7 +215,7 @@ namespace SharpTimer
             {
                 flaggedPlayers++;
             }
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 Utils.ConPrint($"Flagged players: {flaggedPlayers}");
                 if (player is not null)

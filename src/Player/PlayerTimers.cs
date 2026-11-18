@@ -133,13 +133,13 @@ namespace SharpTimer
             if (enableDb)
             {
                 bool playerValid = IsAllowedPlayer(player);
-                _ = Task.Run(async () => await SavePlayerTimeToDatabase(player, currentTicks, steamID, playerName, slot, playerValid, 0, playerTimer.currentStyle, playerTimer.Mode));
+                _ = RunEnabled(async () => await AwaitEnabled(SavePlayerTimeToDatabase(player, currentTicks, steamID, playerName, slot, playerValid, 0, playerTimer.currentStyle, playerTimer.Mode)));
             }
 
             playerTimer.IsTimerRunning = false;
             playerTimer.IsRecordingReplay = false;
 
-            if (!enableDb) _ = Task.Run(async () => await RankCommandHandler(player, steamID, slot, playerName, true));
+            if (!enableDb) _ = RunEnabled(async () => await AwaitEnabled(RankCommandHandler(player, steamID, slot, playerName, true)));
         }
 
         public void OnBonusTimerStop(CCSPlayerController? player, int bonusX)
@@ -165,7 +165,7 @@ namespace SharpTimer
             }
 
             bool playerValid = IsAllowedPlayer(player);
-            _ = Task.Run(async () => await SavePlayerTimeToDatabase(player, currentTicks, steamID, playerName, slot, playerValid, bonusX, playerTimers[player.Slot].currentStyle, playerTimer.Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(SavePlayerTimeToDatabase(player, currentTicks, steamID, playerName, slot, playerValid, bonusX, playerTimers[player.Slot].currentStyle, playerTimer.Mode)));
 
             playerTimers[player.Slot].IsBonusTimerRunning = false;
             playerTimers[player.Slot].IsRecordingReplay = false;
@@ -190,12 +190,12 @@ namespace SharpTimer
                     var (srSteamID, srPlayerName, srTime) = ("null", "null", "null");
                     if (playerTimers[slot] == null || playerTimers[slot].CurrentMapStage == stageTrigger) return;
                     
-                    (srSteamID, srPlayerName, srTime) = await GetStageRecordSteamIDFromDatabase(prevStage, style, mode);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetStageRecordSteamIDFromDatabase(prevStage, style, mode));
 
-                    var (previousStageTime, previousStageSpeed) = await GetStageRecordFromDatabase(prevStage, playerSteamID, style, mode);
-                    var (srStageTime, srStageSpeed) = await GetStageRecordFromDatabase(prevStage, srSteamID, style, mode);
+                    var (previousStageTime, previousStageSpeed) = await AwaitEnabled(GetStageRecordFromDatabase(prevStage, playerSteamID, style, mode));
+                    var (srStageTime, srStageSpeed) = await AwaitEnabled(GetStageRecordFromDatabase(prevStage, srSteamID, style, mode));
 
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         if (!IsAllowedPlayer(player)) return;
                         if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? playerTimer))
@@ -251,7 +251,7 @@ namespace SharpTimer
                     
                     if (playerTimers.TryGetValue(slot, out var timer) && timer?.currentStyle == 0)
                     {
-                        await SavePlayerStageTimeToDatabase(player, playerStageTicks, prevStage, currentSpeed, playerSteamID, playerName, slot, playerCheck, mode: mode);
+                        await AwaitEnabled(SavePlayerStageTimeToDatabase(player, playerStageTicks, prevStage, currentSpeed, playerSteamID, playerName, slot, playerCheck, mode: mode));
                     }
                 }
             }
@@ -285,13 +285,13 @@ namespace SharpTimer
                     var (srSteamID, srPlayerName, srTime) = ("null", "null", "null");
                     if (playerTimers[slot] == null) return;
 
-                    (srSteamID, srPlayerName, srTime) = await GetStageRecordSteamIDFromDatabase(cpTrigger, style, mode);
-                    var (previousStageTime, previousStageSpeed) = await GetStageRecordFromDatabase(cpTrigger, playerSteamID, style, mode);
-                    var (srStageTime, srStageSpeed) = await GetStageRecordFromDatabase(cpTrigger, srSteamID, style, mode);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetStageRecordSteamIDFromDatabase(cpTrigger, style, mode));
+                    var (previousStageTime, previousStageSpeed) = await AwaitEnabled(GetStageRecordFromDatabase(cpTrigger, playerSteamID, style, mode));
+                    var (srStageTime, srStageSpeed) = await AwaitEnabled(GetStageRecordFromDatabase(cpTrigger, srSteamID, style, mode));
 
                     string currentStageSpeed = currentSpeed;
 
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         if (!IsAllowedPlayer(player)) return;
                         if (playerTimers.TryGetValue(slot, out PlayerTimerInfo? playerTimer))
@@ -354,7 +354,7 @@ namespace SharpTimer
 
                     if (playerTimers.TryGetValue(slot, out var timer) && timer?.currentStyle == 0)
                     {
-                        await SavePlayerStageTimeToDatabase(player, playerTimerTicks, cpTrigger, currentStageSpeed, playerSteamID, playerName, slot, playerCheck, mode: mode);
+                        await AwaitEnabled(SavePlayerStageTimeToDatabase(player, playerTimerTicks, cpTrigger, currentStageSpeed, playerSteamID, playerName, slot, playerCheck, mode: mode));
                     }
                 }
             }
@@ -387,13 +387,13 @@ namespace SharpTimer
                     
                     if (playerTimers[slot] == null || playerTimers[slot].CurrentMapCheckpoint == bonusCheckpointTrigger) return;
 
-                    (srSteamID, srPlayerName, srTime) = await GetStageRecordSteamIDFromDatabase(bonusCheckpointTrigger, style, mode);
-                    var (previousStageTime, previousStageSpeed) = await GetStageRecordFromDatabase(bonusCheckpointTrigger, playerSteamID, style, mode);
-                    var (srStageTime, srStageSpeed) = await GetStageRecordFromDatabase(bonusCheckpointTrigger, srSteamID, style, mode);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetStageRecordSteamIDFromDatabase(bonusCheckpointTrigger, style, mode));
+                    var (previousStageTime, previousStageSpeed) = await AwaitEnabled(GetStageRecordFromDatabase(bonusCheckpointTrigger, playerSteamID, style, mode));
+                    var (srStageTime, srStageSpeed) = await AwaitEnabled(GetStageRecordFromDatabase(bonusCheckpointTrigger, srSteamID, style, mode));
 
                     string currentStageSpeed = currentSpeed;
 
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         if (!IsAllowedPlayer(player))
                             return;
@@ -460,7 +460,7 @@ namespace SharpTimer
 
                     if (playerTimers.TryGetValue(slot, out var timer) && timer?.currentStyle == 0)
                     {
-                        await SavePlayerStageTimeToDatabase(player, playerTimerTicks, bonusCheckpointTrigger, currentStageSpeed, playerSteamID, playerName, slot, playerCheck, mode: mode);
+                        await AwaitEnabled(SavePlayerStageTimeToDatabase(player, playerTimerTicks, bonusCheckpointTrigger, currentStageSpeed, playerSteamID, playerName, slot, playerCheck, mode: mode));
                     }
                 }
             }

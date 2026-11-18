@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Core;
 using SharpTimerAPI.Events;
 using SharpTimerAPI;
 
@@ -8,16 +8,19 @@ public class SharpTimerAPI_Manager : ISharpTimerManager
 {
     public void RestartTimer(CCSPlayerController player)
     {
+        if (!SharpTimer.Instance.IsEnabled) return;
         SharpTimer.Instance.RespawnPlayer(player);
     }
 
     public bool IsTimerOn(CCSPlayerController player)
     {
-        return !SharpTimer.Instance.playerTimers[player.Slot].IsTimerBlocked;
+        return SharpTimer.Instance.IsEnabled &&
+               SharpTimer.Instance.playerTimers.TryGetValue(player.Slot, out var timer) && !timer.IsTimerBlocked;
     }
 
     public void ToggleTimer(CCSPlayerController player)
     {
+        if (!SharpTimer.Instance.IsEnabled) return;
         //should probably create a method that actually forces timer toggle.
         //this one wont toggle if player is in command cd or is mid replay.
         SharpTimer.Instance.ForceStopTimer(player, null!);
@@ -25,12 +28,14 @@ public class SharpTimerAPI_Manager : ISharpTimerManager
 
     public void BlockTimerCmd(CCSPlayerController player, bool block)
     {
-        SharpTimer.Instance.playerTimers[player.Slot].TimerCmdBlocked = block;
+        if (!SharpTimer.Instance.IsEnabled) return;
+        if (SharpTimer.Instance.playerTimers.TryGetValue(player.Slot, out var timer)) timer.TimerCmdBlocked = block;
     }
 
     public void BlockRespawnCmd(CCSPlayerController player, bool block)
     {
-        SharpTimer.Instance.playerTimers[player.Slot].RespawnCmdBlocked = block;
+        if (!SharpTimer.Instance.IsEnabled) return;
+        if (SharpTimer.Instance.playerTimers.TryGetValue(player.Slot, out var timer)) timer.RespawnCmdBlocked = block;
     }
 }
 
@@ -38,6 +43,7 @@ public class SharpTimerAPI_EventSender : ISharpTimerEventSender
 {
     public void TriggerEvent(ISharpTimerPlayerEvent @event)
     {
+        if (!SharpTimer.Instance.IsEnabled) return;
         STEventSender?.Invoke(this, @event);
     }
 
@@ -48,7 +54,9 @@ public class SharpTimerAPI_Database : ISharpTimerDatabase
 {
     public async Task<Dictionary<int, ISharpTimerDatabase.PlayerRecord>> GetSortedRecordsFromDatabase(int limit = 0, int bonusX = 0, string mapName = "", int style = 0)
     {
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var sortedRecords = await SharpTimer.Instance.GetSortedRecordsFromDatabase(limit, bonusX, mapName, style);
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var mappedRecords = sortedRecords.ToDictionary(
             kvp => kvp.Key,
             kvp => new ISharpTimerDatabase.PlayerRecord
@@ -65,7 +73,9 @@ public class SharpTimerAPI_Database : ISharpTimerDatabase
 
     public async Task<List<ISharpTimerDatabase.PlayerRecord>> GetAllSortedRecordsFromDatabase(int limit = 0, int bonusX = 0, int style = 0)
     {
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var sortedRecords = await SharpTimer.Instance.GetAllSortedRecordsFromDatabase(limit, bonusX, style);
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var mappedRecords = sortedRecords.Select(record => new ISharpTimerDatabase.PlayerRecord
         {
             RecordID = record.RecordID,
@@ -80,7 +90,9 @@ public class SharpTimerAPI_Database : ISharpTimerDatabase
     
     public async Task<Dictionary<int, ISharpTimerDatabase.PlayerRecord>> GetTopLocalPlayersAsync(int limit = 0, int bonusX = 0, string mapName = "", int style = 0, string mode = "", string type = "")
     {
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var sortedRecords = await SharpTimer.Instance.GetTopPlayersFromDatabase(limit, bonusX, mapName, style, mode, type);
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var mappedRecords = sortedRecords.ToDictionary(
             kvp => kvp.Key,
             kvp => new ISharpTimerDatabase.PlayerRecord
@@ -97,7 +109,9 @@ public class SharpTimerAPI_Database : ISharpTimerDatabase
     }
     public async Task<Dictionary<int, ISharpTimerDatabase.PlayerPoints>> GetTopLocalPointsAsync(int limit = 0)
     {
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var sortedPoints = await SharpTimer.Instance.GetTopPointsFromDatabase(limit);
+        if (!SharpTimer.Instance.IsEnabled) return new();
         var mappedPoints = sortedPoints.ToDictionary(
             kvp => kvp.Key,
             kvp => new ISharpTimerDatabase.PlayerPoints

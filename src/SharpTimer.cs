@@ -42,7 +42,9 @@ public partial class SharpTimer : BasePlugin
             "discordConfig.json",
             "mysqlConfig.json",
             "postgresConfig.json",
-            "ranks.json"
+            "ranks.json",
+            "hud.json",
+            "replay_hud.json"
         };
 
         foreach (string fileName in configFiles)
@@ -121,6 +123,7 @@ public partial class SharpTimer : BasePlugin
         Utils.LogDebug($"Set gameDir to {gameDir}");
 
         EnsureConfigFilesExist();
+        LoadHudConfigurations();
         Server.ExecuteCommand($"execifexists SharpTimer/config.cfg");
 
         CheckMissingFakeConvars();
@@ -155,9 +158,6 @@ public partial class SharpTimer : BasePlugin
             Utils.LogError($"SnapBaseAngles bind failed. Signature is likely outdated. Check for the latest stgamedata.json file on GitHub. Teleport view angles will not snap until updated.");
         }
 
-        if (disableDamage)
-            RegisterListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
-
         RegisterListener<Listeners.OnMapStart>(OnMapStartHandler);
         RegisterListener<Listeners.OnMapEnd>(OnMapEndHandler);
         RegisterListener<Listeners.OnClientDisconnect>(OnClientDisconnectHandler);
@@ -171,6 +171,7 @@ public partial class SharpTimer : BasePlugin
         RegisterEventHandler<EventPlayerSpawn>(EventPlayerSpawn);
         RegisterEventHandler<EventPlayerDisconnect>(EventPlayerDisconnect);
         RegisterEventHandler<EventWeaponFire>(EventWeaponFire);
+        RegisterEventHandler<EventBulletImpact>(OnZoneToolBulletImpact);
 
         AddCommandListener("jointeam", OnCommandJoinTeam, HookMode.Pre);
 
@@ -183,15 +184,17 @@ public partial class SharpTimer : BasePlugin
 
         HookEntityOutput("trigger_teleport", "OnStartTouch", TriggerTeleport_OnStartTouch, HookMode.Pre);
         HookEntityOutput("trigger_teleport", "OnEndTouch", TriggerTeleport_OnEndTouch, HookMode.Pre);
+
+        _runtimeReady = true;
+        NextFrameEnabled(StartRuntime);
     }
 
     public override void Unload(bool hotReload)
     {
+        _runtime.SetEnabled(false);
+        StopRuntime();
         if (isLinux)
             RunCommand?.Unhook(OnRunCommandPre, HookMode.Pre);
-
-        if (disableDamage)
-            RemoveListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
 
         RemoveListener<Listeners.OnMapStart>(OnMapStartHandler);
         RemoveListener<Listeners.OnMapEnd>(OnMapEndHandler);
@@ -206,6 +209,7 @@ public partial class SharpTimer : BasePlugin
         DeregisterEventHandler<EventPlayerSpawn>(EventPlayerSpawn);
         DeregisterEventHandler<EventPlayerDisconnect>(EventPlayerDisconnect);
         DeregisterEventHandler<EventWeaponFire>(EventWeaponFire);
+        DeregisterEventHandler<EventBulletImpact>(OnZoneToolBulletImpact);
 
         RemoveCommandListener("jointeam", OnCommandJoinTeam, HookMode.Pre);
 
@@ -222,6 +226,7 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult OnRunCommandPre(DynamicHook h)
     {
+        if (!IsEnabled) return HookResult.Continue;
         var player = h.GetParam<CCSPlayer_MovementServices>(movementServices).Pawn.Value.Controller.Value
             ?.As<CCSPlayerController>();
 
@@ -374,6 +379,7 @@ public partial class SharpTimer : BasePlugin
 
     private void CheckTransmit(CCheckTransmitInfoList infoList)
     {
+        if (!IsEnabled) return;
         // Early out
         bool anyHiding = false;
         foreach (var t in playerTimers.Values)
@@ -435,6 +441,7 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult EventPlayerConnectFull(EventPlayerConnectFull @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         var player = @event.Userid;
         if (player == null || !player.Valid())
             return HookResult.Continue;
@@ -446,10 +453,11 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult EventPlayerTeam(EventPlayerTeam @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         var player = @event.Userid;
         if (player == null || !player.Valid()) return HookResult.Continue;
 
-        Server.NextFrame(() =>
+        NextFrameEnabled(() =>
         {
             InvalidateTimer(player);
             try
@@ -469,6 +477,7 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult EventRoundStart(EventRoundStart @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         //fck this shit game, entities doesnt seem to spawn so logs get confusing af
         if (Utils.PlayersCount() <= 0)
             return HookResult.Continue;
@@ -480,14 +489,18 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult EventRoundEnd(EventRoundEnd @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         foreach (CCSPlayerController player in connectedPlayers.Values)
             InvalidateTimer(player);
+
+        foreach (var timer in playerTimers.Values) ResetZoneToolInput(timer);
 
         return HookResult.Continue;
     }
 
     private HookResult EventPlayerSpawn(EventPlayerSpawn @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         var player = @event.Userid;
         if (player == null || !player.Valid())
             return HookResult.Continue;
@@ -496,15 +509,18 @@ public partial class SharpTimer : BasePlugin
         if (playerPawn == null)
             return HookResult.Continue;
 
+        CapturePlayerSettings(player);
+        if (playerTimers.TryGetValue(player.Slot, out var zoneTimer)) ResetZoneToolInput(zoneTimer);
+
         //just.. dont ask.
-        AddTimer(0f, () =>
+        AddEnabledTimer(0f, () =>
         {
             if (spawnOnRespawnPos == true && currentRespawnPos != null)
                 playerPawn.Teleport(currentRespawnPos);
 
             if (removeLegsEnabled == true)
             {
-                Server.NextWorldUpdate(() =>
+                NextWorldUpdateEnabled(() =>
                 {
                     playerPawn.Render = Color.FromArgb(254, playerPawn.Render.R, playerPawn.Render.G, playerPawn.Render.B);
                     Utilities.SetStateChanged(playerPawn, "CBaseModelEntity", "m_clrRender");
@@ -514,23 +530,23 @@ public partial class SharpTimer : BasePlugin
 
         if (apiKey != "")
         {
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 if (player == null || !player.IsValid) return;
                 long steamId = (long)player.SteamID;
                 string playerName = player.PlayerName;
                 int slot = player.Slot;
-                _ = Task.Run(async () =>
+                _ = RunEnabled(async () =>
                 {
                     try
                     {
-                        await UpdatePlayerAsync(steamId, playerName);
-                        int playerId = await GetPlayerIDAsync(steamId);
-                        Server.NextFrame(() => { if (!globalDisabled) playerCache.PlayerID[slot] = playerId; });
+                        await AwaitEnabled(UpdatePlayerAsync(steamId, playerName));
+                        int playerId = await AwaitEnabled(GetPlayerIDAsync(steamId));
+                        NextFrameEnabled(() => { if (!globalDisabled) playerCache.PlayerID[slot] = playerId; });
                     }
                     catch (Exception ex)
                     {
-                        Server.NextFrame(() => Utils.LogError($"Error caching global player ID: {ex.Message}"));
+                        NextFrameEnabled(() => Utils.LogError($"Error caching global player ID: {ex.Message}"));
                     }
                 });
             });
@@ -543,7 +559,7 @@ public partial class SharpTimer : BasePlugin
             if (enableStyles)
                 setStyle(player, playerTimers[player.Slot].currentStyle);
 
-            Server.NextFrame( () =>
+            NextFrameEnabled( () =>
             {
                 if (!string.IsNullOrEmpty(playerTimer.Mode) &&
                     TryParseMode(playerTimer.Mode.ToLower(), out Mode newMode) &&
@@ -559,7 +575,7 @@ public partial class SharpTimer : BasePlugin
                 }
             });
 
-            AddTimer(3.0f, () =>
+            AddEnabledTimer(3.0f, () =>
             {
                 if (enableDb && playerTimers.ContainsKey(player.Slot) &&
                     player.DesiredFOV != (uint)playerTimers[player.Slot].PlayerFov)
@@ -570,7 +586,7 @@ public partial class SharpTimer : BasePlugin
                 }
             });
 
-            Server.NextFrame(() => InvalidateTimer(player));
+            NextFrameEnabled(() => InvalidateTimer(player));
         }
 
         return HookResult.Continue;
@@ -578,6 +594,7 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult EventPlayerDisconnect(EventPlayerDisconnect @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         var player = @event.Userid;
         if (player == null || !player.Valid())
             return HookResult.Continue;
@@ -589,9 +606,12 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult EventWeaponFire(EventWeaponFire @event, GameEventInfo @eventInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         if (@event.Userid == null || !@event.Userid.IsValid) return HookResult.Continue;
 
         var player = @event.Userid;
+        if (playerTimers.TryGetValue(player.Slot, out var zoneTimer))
+            zoneTimer.ZoneToolGun.Arm(Server.TickCount);
 
         if (!applyInfiniteAmmo)
             return HookResult.Continue;
@@ -599,6 +619,7 @@ public partial class SharpTimer : BasePlugin
         var activeWeaponHandle = player.PlayerPawn.Value?.WeaponServices?.ActiveWeapon;
         if (activeWeaponHandle?.Value != null)
         {
+            CaptureWeaponSettings(activeWeaponHandle.Value);
             activeWeaponHandle.Value.Clip1 = 100;
             activeWeaponHandle.Value.ReserveAmmo[0] = 100;
         }
@@ -608,6 +629,7 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult OnCommandJoinTeam(CCSPlayerController? player, CommandInfo commandInfo)
     {
+        if (!IsEnabled) return HookResult.Continue;
         if (player == null || !player.IsValid) return HookResult.Handled;
         InvalidateTimer(player);
         return HookResult.Continue;
@@ -615,6 +637,7 @@ public partial class SharpTimer : BasePlugin
 
     private HookResult OnUserMessage_RemoveSound(UserMessage um)
     {
+        if (!IsEnabled) return HookResult.Continue;
         foreach (var p in connectedPlayers)
         {
             if (connectedPlayers.TryGetValue(p.Key, out var player))

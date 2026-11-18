@@ -22,7 +22,8 @@ namespace SharpTimer
     {
         private HookResult OnPlayerTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
         {
-            if (!disableDamage)
+            if (!IsEnabled) return HookResult.Continue;
+            if (!IsEnabled || !disableDamage)
                 return HookResult.Continue;
 
             if (player == null || !player.IsValid)

@@ -52,11 +52,11 @@ namespace SharpTimer
                 var request = new HttpRequestMessage(HttpMethod.Get, apiUrl);
                 request.Headers.Add("User-Agent", "request");
 
-                HttpResponseMessage response = await Plugin.httpClient.SendAsync(request);
+                HttpResponseMessage response = await Plugin.AwaitEnabled(Plugin.httpClient.SendAsync(request,Plugin.RuntimeToken));
 
                 if (response.IsSuccessStatusCode)
                 {
-                    string json = await response.Content.ReadAsStringAsync();
+                    string json = await Plugin.AwaitEnabled(response.Content.ReadAsStringAsync());
                     var options = Plugin.jsonSerializerOptions;
                     var releaseInfo = JsonSerializer.Deserialize<Dictionary<string, object>>(json, options);
 
@@ -81,7 +81,7 @@ namespace SharpTimer
         {
             try
             {
-                (bool isLatest, string latestVersion) = await IsLatestVersion();
+                (bool isLatest, string latestVersion) = await Plugin.AwaitEnabled(IsLatestVersion());
 
                 if (!isLatest && latestVersion != "null")
                 {
@@ -362,6 +362,7 @@ namespace SharpTimer
                 beamColor = Plugin.primaryHUDcolor;
             }
 
+            if (!Plugin.IsEnabled) return;
             CBeam beam = Utilities.CreateEntityByName<CBeam>("beam")!;
             if (beam == null)
             {
@@ -387,6 +388,7 @@ namespace SharpTimer
             beam.EndPos.Z = endPos.Z;
 
             beam.DispatchSpawn();
+            Plugin.ZoneBeams.Add(beam);
             LogDebug($"Beam Spawned at S:{startPos} E:{beam.EndPos}");
         }
 
@@ -542,7 +544,7 @@ namespace SharpTimer
 
             try
             {
-                using (JsonDocument? jsonDocument = await LoadJson(mapRecordsPath)!)
+                using (JsonDocument? jsonDocument = await Plugin.AwaitEnabled(LoadJson(mapRecordsPath)!))
                 {
                     if (jsonDocument != null)
                     {
@@ -597,7 +599,7 @@ namespace SharpTimer
                     mapname = Plugin.currentMapName!;
                 LogDebug($"Trying to fetch remote_data for {Plugin.currentMapName} from {url}");
 
-                var response = await Plugin.httpClient.GetStringAsync(url);
+                var response = await Plugin.AwaitEnabled(Plugin.httpClient.GetStringAsync(url));
 
                 using (var jsonDocument = JsonDocument.Parse(response))
                 {
@@ -639,7 +641,7 @@ namespace SharpTimer
                     mapname = Plugin.currentMapName!;
                 LogDebug($"Trying to fetch local_data for {Plugin.currentMapName} from {path}");
 
-                using (var jsonDocument = await LoadJson(path))
+                using (var jsonDocument = await Plugin.AwaitEnabled(LoadJson(path)))
                 {
                     
                     if (jsonDocument!.RootElement.TryGetProperty(mapname, out var mapInfo))
@@ -679,9 +681,9 @@ namespace SharpTimer
             string? mapType;
 
             if (Plugin.disableRemoteData)
-                (mapTier, mapType) = await FindMapInfoFromLocal(mapInfoSource);
+                (mapTier, mapType) = await Plugin.AwaitEnabled(FindMapInfoFromLocal(mapInfoSource));
             else
-                (mapTier, mapType) = await FindMapInfoFromHTTP(mapInfoSource);
+                (mapTier, mapType) = await Plugin.AwaitEnabled(FindMapInfoFromHTTP(mapInfoSource));
 
             Plugin.currentMapTier = mapTier;
             Plugin.currentMapType = mapType;
@@ -690,9 +692,9 @@ namespace SharpTimer
 
             if (Plugin.autosetHostname == true)
             {
-                Server.NextFrame(() =>
+                Plugin.NextFrameEnabled(() =>
                 {
-                    Server.ExecuteCommand($"hostname {Plugin.defaultServerHostname}{tierString}{typeString}");
+                    Plugin.ExecuteEnabledCommand($"hostname {Plugin.defaultServerHostname}{tierString}{typeString}");
                     LogDebug($"SharpTimer Hostname Updated to: {ConVar.Find("hostname")!.StringValue}");
                 });
             }
@@ -741,7 +743,7 @@ namespace SharpTimer
 
         public async Task<JsonDocument?> LoadJson(string path)
         {
-            return await Task.Run(() =>
+            return await Plugin.AwaitEnabled(Plugin.RunEnabled(() =>
             {
                 if (File.Exists(path))
                 {
@@ -756,7 +758,7 @@ namespace SharpTimer
                     }
                 }
                 return null;
-            });
+            }));
         }
 
         public JsonDocument? LoadJsonOnMainThread(string path)
@@ -911,11 +913,13 @@ namespace SharpTimer
 
         public void PrintToChat(CCSPlayerController player, string message)
         {
+            if (!Plugin.IsEnabled) return;
             player.PrintToChat($" {Localizer["prefix"]} {message}");
         }
 
         public void PrintToSpec(CCSPlayerController target, string message)
         {
+            if (!Plugin.IsEnabled) return;
             if (target == null || !target.IsValid) return;
             var targetPawn = target.PlayerPawn?.Value;
             if (targetPawn == null || !targetPawn.IsValid) return;
@@ -935,6 +939,7 @@ namespace SharpTimer
 
         public void PrintToChatAll(string message)
         {
+            if (!Plugin.IsEnabled) return;
             Server.PrintToChatAll($" {Localizer["prefix"]} {message}");
         }
 

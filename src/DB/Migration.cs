@@ -60,6 +60,7 @@ public partial class SharpTimer
 
             using (cmd)
             {
+                RequireEnabled();
                 cmd?.ExecuteNonQuery();
             }
 
@@ -89,6 +90,7 @@ public partial class SharpTimer
                 }
                 using (cmdMigration)
                 {
+                    RequireEnabled();
                     cmdMigration?.ExecuteNonQuery();
                 }
 
@@ -141,6 +143,7 @@ public partial class SharpTimer
         using (cmd)
         {
             cmd?.AddParameterWithValue("@Version", version);
+            RequireEnabled();
             cmd?.ExecuteNonQuery();
         }
     }

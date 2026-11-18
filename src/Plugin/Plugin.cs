@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Modules.Timers;
 using FixVectorLeak;
 using System.Text;
@@ -12,34 +12,39 @@ public partial class SharpTimer
 {
     private void OnMapStartHandler(string mapName)
     {
+        if (!IsEnabled || _mapRuntimeStarted) return;
+        _mapRuntimeStarted = true;
+        UpdateDamageHook();
+        foreach (string name in new[] { "sv_accelerate", "sv_airaccelerate", "sv_air_max_wishspeed", "sv_friction" })
+            CaptureServerSetting(name);
         try
         {
             _gameRules = null;
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 Utils.LogDebug("OnMapStart:");
                 Utils.LogDebug("Executing SharpTimer/config");
-                Server.ExecuteCommand("sv_autoexec_mapname_cfg 0");
-                Server.ExecuteCommand($"execifexists SharpTimer/config.cfg");
+                ExecuteEnabledCommand("sv_autoexec_mapname_cfg 0");
+                // Plugin settings are loaded once in Load; do not reset the master switch on each map.
 
                 //delay custom_exec so it executes after map exec
                 Utils.LogDebug("Creating custom_exec 1sec delay");
-                var custom_exec_delay = AddTimer(1.0f, () =>
+                var custom_exec_delay = AddEnabledTimer(1.0f, () =>
                 {
                     //Utils.LogDebug("Re-Executing SharpTimer/custom_exec");
-                    Server.ExecuteCommand("execifexists SharpTimer/custom_exec.cfg");
+                    ExecuteEnabledCommand("execifexists SharpTimer/custom_exec.cfg");
                     if (execCustomMapCFG == true)
                     {
                         string MapExecFile = Utils.GetClosestMapCFGMatch();
                         if (!string.IsNullOrEmpty(MapExecFile))
-                            Server.ExecuteCommand($"execifexists SharpTimer/MapData/MapExecs/{MapExecFile}");
+                            ExecuteEnabledCommand($"execifexists SharpTimer/MapData/MapExecs/{MapExecFile}");
                         else
                             Utils.LogError("MapExec Error: file name returned null");
                     }
                 }, TimerFlags.STOP_ON_MAPCHANGE);
 
-                if (removeCrouchFatigueEnabled == true) Server.ExecuteCommand("sv_timebetweenducks 0");
-                Server.ExecuteCommand("log off"); // prevent crippling console spam from modes
+                if (removeCrouchFatigueEnabled == true) ExecuteEnabledCommand("sv_timebetweenducks 0");
+                ExecuteEnabledCommand("log off"); // prevent crippling console spam from modes
                 //bonusRespawnPoses.Clear();
                 bonusRespawnAngs.Clear();
 
@@ -81,13 +86,13 @@ public partial class SharpTimer
                         enableDb = true;
                     }
 
-                    _ = Task.Run(async () =>
+                    _ = RunEnabled(async () =>
                     {
                         try
                         {
                             using (var connection = OpenConnection())
                             {
-                                await CheckTablesAsync();
+                                await AwaitEnabled(CheckTablesAsync());
                                 ExecuteMigrations(connection);
                             }
                         }
@@ -110,32 +115,32 @@ public partial class SharpTimer
                 if (apiKey == "")
                     globalDisabled = true;
 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
-                    _ = Task.Run(async () =>
+                    _ = RunEnabled(async () =>
                     {
                         try
                         {
                             if (globalDisabled) return;
-                            validKey = await CheckKeyAsync();
-                            validHash = await CheckHashAsync();
-                            long addonID = await GetAddonID(mapName);
+                            validKey = await AwaitEnabled(CheckKeyAsync());
+                            validHash = await AwaitEnabled(CheckHashAsync());
+                            long addonID = await AwaitEnabled(GetAddonID(mapName));
 
-                            int mapId = await GetMapIDAsync(addonID);
-                            await CacheMapData(mapId, addonID, mapName);
-                            await CacheWorldRecords(true);
-                            await CacheGlobalPoints(true);
+                            int mapId = await AwaitEnabled(GetMapIDAsync(addonID));
+                            await AwaitEnabled(CacheMapData(mapId, addonID, mapName));
+                            await AwaitEnabled(CacheWorldRecords(true));
+                            await AwaitEnabled(CacheGlobalPoints(true));
 
-                            int serverId = await GetServerIDAsync(ip, port);
+                            int serverId = await AwaitEnabled(GetServerIDAsync(ip, port));
                             CacheServerID(serverId);
                             if (serverId == 0)
                             {
-                                Server.NextFrame(() => globalDisabled = true);
+                                NextFrameEnabled(() => globalDisabled = true);
                             }
                         }
                         catch (Exception ex)
                         {
-                            Server.NextFrame(() => Utils.LogError($"Error in global API init: {ex.Message}"));
+                            NextFrameEnabled(() => Utils.LogError($"Error in global API init: {ex.Message}"));
                         }
                     });
                 });
@@ -163,9 +168,9 @@ public partial class SharpTimer
 
                 if (!globalDisabled)
                 {
-                    AddTimer(globalCacheInterval, async () => await CacheWorldRecords(),
+                    AddEnabledTimer(globalCacheInterval, async () => await AwaitEnabled(CacheWorldRecords()),
                         TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
-                    AddTimer(globalCacheInterval, async () => await CacheGlobalPoints(),
+                    AddEnabledTimer(globalCacheInterval, async () => await AwaitEnabled(CacheGlobalPoints()),
                         TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
                 }
                 InitializeModeConfigs();
@@ -179,6 +184,7 @@ public partial class SharpTimer
 
     private void LoadMapData(string mapName)
     {
+        if (!IsEnabled) return;
         try
         {
             Utils.LogDebug($"Loading MapData on RoundStart...");
@@ -274,32 +280,37 @@ public partial class SharpTimer
                 }
             }
 
-            Server.ExecuteCommand($"execifexists SharpTimer/config.cfg");
+            // Keep runtime master-switch changes across rounds.
             Utils.LogDebug("Re-Executing custom_exec with 1sec delay...");
-            var custom_exec_delay = AddTimer(1.0f, () =>
+            var custom_exec_delay = AddEnabledTimer(1.0f, () =>
             {
                 Utils.LogDebug("Re-Executing SharpTimer/custom_exec");
-                Server.ExecuteCommand("execifexists SharpTimer/custom_exec.cfg");
+                ExecuteEnabledCommand("execifexists SharpTimer/custom_exec.cfg");
 
                 if (execCustomMapCFG)
                 {
                     string MapExecFile = Utils.GetClosestMapCFGMatch();
                     if (!string.IsNullOrEmpty(MapExecFile))
-                        Server.ExecuteCommand($"execifexists SharpTimer/MapData/MapExecs/{MapExecFile}");
+                        ExecuteEnabledCommand($"execifexists SharpTimer/MapData/MapExecs/{MapExecFile}");
                     else
                         Utils.LogError("MapExec Error: file name returned null");
                 }
+
+                // Mode and replay settings in custom/map execs must apply before
+                // resolving the record and its replay directory.
+                NextFrameEnabled(() =>
+                {
+                    if (Utils.PlayersCount() > 0 && enableReplays && enableSRreplayBot && replayBotSlot == -1)
+                        _ = RunEnabled(SpawnReplayBot);
+                });
             }, TimerFlags.STOP_ON_MAPCHANGE);
             
             if (adServerRecordEnabled) ADtimerServerRecord();
             if (adMessagesEnabled) ADtimerMessages();
 
-            if (Utils.PlayersCount() > 0 && enableReplays && enableSRreplayBot && replayBotSlot == -1)
-                Server.NextFrame(() => _ = Task.Run(SpawnReplayBot));
+            _ = RunEnabled(Utils.GetMapInfo);
 
-            _ = Task.Run(Utils.GetMapInfo);
-
-            _ = Task.Run(async () => await GetDiscordWebhookURLFromConfigFile(discordCFGpath));
+            _ = RunEnabled(async () => await AwaitEnabled(GetDiscordWebhookURLFromConfigFile(discordCFGpath)));
 
             primaryChatColor = Utils.ParseColorToSymbol(primaryHUDcolor);
 
@@ -545,7 +556,7 @@ public partial class SharpTimer
 
                 if (!string.IsNullOrEmpty(mapInfo.MapTier))
                 {
-                    AddTimer(10.0f,
+                    AddEnabledTimer(10.0f,
                         () => //making sure this happens after remote_data is fetched due to github being slow sometimes
                         {
                             try
@@ -562,7 +573,7 @@ public partial class SharpTimer
 
                 if (!string.IsNullOrEmpty(mapInfo.MapType))
                 {
-                    AddTimer(10.0f,
+                    AddEnabledTimer(10.0f,
                         () => //making sure this happens after remote_data is fetched due to github being slow sometimes
                         {
                             try
@@ -715,7 +726,7 @@ public partial class SharpTimer
 
         try
         {
-            using (JsonDocument? jsonDocument = await Utils.LoadJson(mapRecordsPath)!)
+            using (JsonDocument? jsonDocument = await AwaitEnabled(Utils.LoadJson(mapRecordsPath)!))
             {
                 if (jsonDocument != null)
                 {
@@ -764,13 +775,13 @@ public partial class SharpTimer
     {
         if (isADServerRecordTimerRunning) return;
 
-        var timer = AddTimer(adServerRecordTimer, () =>
+        var timer = AddEnabledTimer(adServerRecordTimer, () =>
         {
-            Task.Run(async () =>
+            RunEnabled(async () =>
             {
                 Utils.LogDebug($"Running Server Record AD...");
 
-                Dictionary<int, PlayerRecord> cachedSortedRecords = await GetSortedRecordsFromDatabase(1, 0, "", 0, GetModeName(defaultMode));
+                Dictionary<int, PlayerRecord> cachedSortedRecords = await AwaitEnabled(GetSortedRecordsFromDatabase(1, 0, "", 0, GetModeName(defaultMode)));
                 
                 if (cachedSortedRecords.Count == 0)
                 {
@@ -778,12 +789,12 @@ public partial class SharpTimer
                     return;
                 }
 
-                Server.NextFrame(() => Utils.PrintToChatAll(Localizer["current_sr", currentMapName!]));
+                NextFrameEnabled(() => Utils.PrintToChatAll(Localizer["current_sr", currentMapName!]));
 
                 var serverRecord = cachedSortedRecords.FirstOrDefault();
                 string playerName = serverRecord.Value.PlayerName!; // Get the player name from the dictionary value
                 int timerTicks = serverRecord.Value.TimerTicks; // Get the timer ticks from the dictionary value
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.PrintToChatAll(Localizer["current_sr_player", playerName, Utils.FormatTime(timerTicks)]));
             });
         }, TimerFlags.REPEAT);
@@ -795,7 +806,7 @@ public partial class SharpTimer
     {
         if (isADMessagesTimerRunning) return;
 
-        var timer = AddTimer(adMessagesTimer, () =>
+        var timer = AddEnabledTimer(adMessagesTimer, () =>
         {
             List<string> allAdMessages = [.. GetAdMessages()];
 
@@ -809,7 +820,7 @@ public partial class SharpTimer
                 allAdMessages.AddRange(nonEmptyCustomAds);
             }
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
                 Utils.PrintToChatAll($"{Utils.ReplaceVars(allAdMessages[new Random().Next(allAdMessages.Count)])}"));
         }, TimerFlags.REPEAT);
 

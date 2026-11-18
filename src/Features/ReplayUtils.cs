@@ -14,13 +14,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using CounterStrikeSharp.API;
-using System.Runtime.Serialization.Formatters.Binary;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Memory;
 using System.Text.Json;
 using FixVectorLeak;
-using CounterStrikeSharp.API.Modules.Timers;
 
 namespace SharpTimer
 {
@@ -66,44 +65,45 @@ namespace SharpTimer
             {
                 if (!IsAllowedPlayer(player)) return;
 
-                //player.LerpTime = 0.0078125f;
-
                 if (playerTimers.TryGetValue(player.Slot, out PlayerTimerInfo? value))
                 {
                     var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick];
+                    var pawn = player.PlayerPawn.Value;
+                    if (pawn == null || pawn.MovementServices == null) return;
 
-                    if (((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_ONGROUND) != 0)
-                    {
-                        SetMoveType(player, MoveType_t.MOVETYPE_WALK);
-                    }
-                    else
-                    {
-                        SetMoveType(player, MoveType_t.MOVETYPE_OBSERVER);
-                    }
+                    // Recorded positions drive playback. Observer movement changes the
+                    // camera rules, and walking lets physics move the pawn between frames.
+                    if (pawn.MoveType != MoveType_t.MOVETYPE_NONE || pawn.ActualMoveType != MoveType_t.MOVETYPE_NONE)
+                        SetMoveType(player, MoveType_t.MOVETYPE_NONE);
+                    value.MovementService = new CCSPlayer_MovementServices(pawn.MovementServices.Handle);
+                    bool ducked = ((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_DUCKING) != 0;
+                    SetReplayPosture(pawn, value.MovementService, ducked);
 
-                    if (((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_DUCKING) != 0)
-                    {
-                        value.MovementService!.DuckAmount = 1;
-                    }
-                    else
-                    {
-                        value.MovementService!.DuckAmount = 0;
-                    }
+                    bool resetCamera = playerReplays[player.Slot].CameraContinuity.Advance(pawn.Handle, plackbackTick,
+                        new(replayFrame.Position!.X, replayFrame.Position.Y, replayFrame.Position.Z),
+                        new(replayFrame.Speed!.X, replayFrame.Speed.Y, replayFrame.Speed.Z));
 
-                    player.PlayerPawn.Value!.Teleport(ReplayVector.ToVector(replayFrame.Position!),
+                    pawn.Teleport(ReplayVector.ToVector(replayFrame.Position!),
                         ReplayQAngle.ToQAngle(replayFrame.Rotation!), ReplayVector.ToVector(replayFrame.Speed!));
-
-                    var replayButtons = $"{((replayFrame.Buttons & PlayerButtons.Moveleft) != 0 ? "A" : "_")} " +
-                                        $"{((replayFrame.Buttons & PlayerButtons.Forward) != 0 ? "W" : "_")} " +
-                                        $"{((replayFrame.Buttons & PlayerButtons.Moveright) != 0 ? "D" : "_")} " +
-                                        $"{((replayFrame.Buttons & PlayerButtons.Back) != 0 ? "S" : "_")} " +
-                                        $"{((replayFrame.Buttons & PlayerButtons.Jump) != 0 ? "J" : "_")} " +
-                                        $"{((replayFrame.Buttons & PlayerButtons.Duck) != 0 ? "C" : "_")}";
-
-                    if (value.HideKeys != true && value.IsReplaying == true && keysOverlayEnabled == true)
+                    if (resetCamera)
                     {
-                        player.PrintToCenter(replayButtons);
+                        // Snap across map teleports and replay loops instead of moving
+                        // the spectator camera through the space between both endpoints.
+                        pawn.InterpolationFrame = unchecked((byte)(pawn.InterpolationFrame + 1));
+                        Utilities.SetStateChanged(pawn, "CBaseEntity", "m_ubInterpolationFrame");
+                        SnapBaseAngles.Snap(pawn, new QAngle_t(replayFrame.Rotation!.Pitch,
+                            replayFrame.Rotation.Yaw, replayFrame.Rotation.Roll));
                     }
+                    if (pawn.CameraServices != null)
+                    {
+                        pawn.CameraServices.OldPlayerZ = replayFrame.Position!.Z;
+                        pawn.CameraServices.OldPlayerViewOffsetZ = pawn.ViewOffset.Z;
+                    }
+
+                    // Observers read the buttons from the frame actually applied to the pawn.
+                    playerReplays[player.Slot].LastPlaybackButtons = replayFrame.Buttons;
+                    // GetHudContent renders playback keys using replay_hud.json for
+                    // both the replaying player and spectators.
                 }
             }
             catch (Exception ex)
@@ -112,16 +112,63 @@ namespace SharpTimer
             }
         }
 
+        private static void SetReplayPosture(CCSPlayerPawn pawn, CCSPlayer_MovementServices movement, bool ducked)
+        {
+            movement.DuckAmount = ducked ? 1f : 0f;
+            movement.Ducked = ducked;
+            movement.Ducking = false;
+            movement.DesiresDuck = ducked;
+            movement.DuckUntilOnGround = false;
+            movement.DuckRootOffset = 0f;
+            movement.DuckViewOffset = 0f;
+            movement.UsingGroundTopologyOffset = false;
+            movement.UsingGroundTopologyOffsetTransitionSmoothing = 0f;
+            uint flags = ducked ? pawn.Flags | (uint)PlayerFlags.FL_DUCKING : pawn.Flags & ~(uint)PlayerFlags.FL_DUCKING;
+            if (pawn.Flags != flags)
+            {
+                pawn.Flags = flags;
+                Utilities.SetStateChanged(pawn, "CBaseEntity", "m_fFlags");
+            }
+            float viewHeight = ducked ? 46f : 64f;
+            // m_vecViewOffset is an embedded network object, not a network leaf.
+            // Mark the changed component at its schema offset, never its parent.
+            if (pawn.ViewOffset.X != 0f)
+            {
+                pawn.ViewOffset.X = 0f;
+                MarkReplayViewComponentChanged(pawn, "m_vecX");
+            }
+            if (pawn.ViewOffset.Y != 0f)
+            {
+                pawn.ViewOffset.Y = 0f;
+                MarkReplayViewComponentChanged(pawn, "m_vecY");
+            }
+            if (pawn.ViewOffset.Z != viewHeight)
+            {
+                pawn.ViewOffset.Z = viewHeight;
+                MarkReplayViewComponentChanged(pawn, "m_vecZ");
+            }
+        }
+
+        private static void MarkReplayViewComponentChanged(CCSPlayerPawn pawn, string component) =>
+            Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_vecViewOffset",
+                Schema.GetSchemaOffset("CNetworkViewOffsetVector", component));
+
+        private void ResetReplayPosture(CCSPlayerController player)
+        {
+            var pawn = player.PlayerPawn.Value;
+            if (pawn == null || !pawn.IsValid || pawn.MovementServices == null) return;
+            SetReplayPosture(pawn, new CCSPlayer_MovementServices(pawn.MovementServices.Handle), false);
+            if (pawn.CameraServices != null)
+                pawn.CameraServices.OldPlayerViewOffsetZ = pawn.ViewOffset.Z;
+        }
+
         private void ReplayPlay(CCSPlayerController player)
         {
             try
             {
                 int totalFrames = playerReplays[player.Slot].replayFrames.Count;
 
-                if (totalFrames <= 128)
-                {
-                    OnRecordingStop(player);
-                }
+                if (totalFrames == 0) return;
 
                 if (playerReplays[player.Slot].CurrentPlaybackFrame < 0 ||
                     playerReplays[player.Slot].CurrentPlaybackFrame >= totalFrames)
@@ -176,7 +223,7 @@ namespace SharpTimer
         public async Task DumpReplayToJson(string steamID, int slot, int bonusX = 0,
             int style = 0, string mode = "")
         {
-            await Task.Run(() =>
+            await AwaitEnabled(RunEnabled(() =>
             {
                 string fileName = $"{steamID}_replay.json";
                 string playerReplaysDirectory;
@@ -197,6 +244,7 @@ namespace SharpTimer
                         .Select((frame, index) => new IndexedReplayFrames { Index = index, Frame = frame })
                         .ToList();
 
+                    RequireEnabled();
                     using (Stream stream = new FileStream(playerReplaysPath, FileMode.Create))
                     {
                         JsonSerializer.Serialize(stream, indexedReplayFrames);
@@ -206,13 +254,13 @@ namespace SharpTimer
                 {
                     Utils.LogError($"Error during serialization: {ex.Message}");
                 }
-            });
+            }));
         }
 
         public async Task DumpReplayToBinary(string steamID, int playerSlot, int bonusX = 0,
             int style = 0, string mode = "")
         {
-            await Task.Run(() =>
+            await AwaitEnabled(RunEnabled(() =>
             {
                 string fileName = $"{steamID}_replay.dat";
                 string playerReplaysDirectory;
@@ -233,6 +281,7 @@ namespace SharpTimer
                         .Select((frame, index) => new IndexedReplayFrames { Index = index, Frame = frame })
                         .ToList();
 
+                    RequireEnabled();
                     using Stream stream = new FileStream(playerReplaysPath, FileMode.Create);
                     BinaryWriter writer = new BinaryWriter(stream);
 
@@ -258,7 +307,7 @@ namespace SharpTimer
                 {
                     Utils.LogError($"Error during serialization: {ex.Message}");
                 }
-            });
+            }));
         }
 
         public string SerializeFrameToBinaryString(List<IndexedReplayFrames> frames)
@@ -324,7 +373,7 @@ namespace SharpTimer
             {
                 if (File.Exists(playerReplaysPath))
                 {
-                    var jsonString = await File.ReadAllTextAsync(playerReplaysPath);
+                    var jsonString = await AwaitEnabled(File.ReadAllTextAsync(playerReplaysPath));
                     if (!jsonString.Contains("PositionString"))
                     {
                         var indexedReplayFrames = JsonSerializer.Deserialize<List<IndexedReplayFrames>>(jsonString);
@@ -347,13 +396,13 @@ namespace SharpTimer
                     }
                     else
                     {
-                        Server.NextFrame(() => { Utils.PrintToChat(player, $"Unsupported replay format"); });
+                        NextFrameEnabled(() => { Utils.PrintToChat(player, $"Unsupported replay format"); });
                     }
                 }
                 else
                 {
                     Utils.LogError($"File does not exist: {playerReplaysPath}");
-                    Server.NextFrame(() => Utils.PrintToChat(player, Localizer["replay_dont_exist"]));
+                    NextFrameEnabled(() => Utils.PrintToChat(player, Localizer["replay_dont_exist"]));
                 }
             }
             catch (Exception ex)
@@ -375,7 +424,7 @@ namespace SharpTimer
                 if (!File.Exists(playerReplaysPath))
                 {
                     Utils.LogError($"File does not exist: {playerReplaysPath}");
-                    Server.NextFrame(() => Utils.PrintToChat(player, Localizer["replay_dont_exist"]));
+                    NextFrameEnabled(() => Utils.PrintToChat(player, Localizer["replay_dont_exist"]));
                     return;
                 }
 
@@ -386,12 +435,12 @@ namespace SharpTimer
                 if (version != REPLAY_VERSION)
                 {
                     Utils.LogError($"Unsupported replay version: {version}");
-                    Server.NextFrame(() => Utils.PrintToChat(player, $"Unsupported replay version: {version}"));
+                    NextFrameEnabled(() => Utils.PrintToChat(player, $"Unsupported replay version: {version}"));
                     return;
                 }
 
                 var replayFrames = new List<PlayerReplays.ReplayFrames>();
-                await Server.NextFrameAsync(() =>
+                await AwaitEnabled(NextFrameEnabledAsync(() =>
                 {
                     while (reader.BaseStream.Position != reader.BaseStream.Length)
                     {
@@ -412,7 +461,7 @@ namespace SharpTimer
                             MoveType = moveType
                         });
                     }
-                });
+                }));
 
                 if (!playerReplays.TryGetValue(playerSlot, out PlayerReplays? value))
                 {
@@ -440,7 +489,7 @@ namespace SharpTimer
 
             try
             {
-                byte[] replayData = Convert.FromBase64String(await GetReplayFromGlobal(payload));
+                byte[] replayData = Convert.FromBase64String(await AwaitEnabled(GetReplayFromGlobal(payload)));
                 using Stream stream = new MemoryStream(replayData);
                 using BinaryReader reader = new BinaryReader(stream);
 
@@ -448,12 +497,12 @@ namespace SharpTimer
                 if (version != REPLAY_VERSION)
                 {
                     Utils.LogError($"Unsupported replay version: {version}");
-                    Server.NextFrame(() => Utils.PrintToChat(player, $"Unsupported replay version: {version}"));
+                    NextFrameEnabled(() => Utils.PrintToChat(player, $"Unsupported replay version: {version}"));
                     return;
                 }
 
                 var replayFrames = new List<PlayerReplays.ReplayFrames>();
-                await Server.NextFrameAsync(() =>
+                await AwaitEnabled(NextFrameEnabledAsync(() =>
                 {
                     while (reader.BaseStream.Position != reader.BaseStream.Length)
                     {
@@ -474,7 +523,7 @@ namespace SharpTimer
                             MoveType = moveType
                         });
                     }
-                });
+                }));
 
                 if (!playerReplays.TryGetValue(player.Slot, out PlayerReplays? value))
                 {
@@ -490,95 +539,176 @@ namespace SharpTimer
             }
         }
 
+        private readonly ReplayBotStartup _replayBotStartup = new();
+        private nint _replayBotPawnHandle;
+
         private async Task SpawnReplayBot()
         {
-            if (!await CheckSRReplay("x", 0, 0, GetModeName(defaultMode)))
+            CCSPlayerController? replayBot = null;
+            bool botRequested = false;
+            bool triedTTeam = false;
+            int readinessAttempts = 0;
+            string botMode = "";
+            try
             {
-                Utils.LogError("Replay check failed, not spawning bot.");
-                return;
-            }
-
-            Server.NextFrame(() =>
-            {
-                AddTimer(3.0f, () =>
+                bool started = await _replayBotStartup.Run(async () =>
                 {
-                    Server.ExecuteCommand("bot_quota_mode normal");
-                    Server.ExecuteCommand("bot_quota 0");
-                    Server.ExecuteCommand("bot_chatter off");
-                    Server.ExecuteCommand("bot_controllable 0");
-                    Server.ExecuteCommand("bot_kick");
-                    replayBotSlot = -1;
-
-                    AddTimer(3.0f, () =>
+                    if (!enableReplays || !enableSRreplayBot) return false;
+                    await AwaitEnabled(NextFrameEnabledAsync(() => botMode = GetModeName(defaultMode)));
+                    string replayFailure = "";
+                    if (!await AwaitEnabled(CheckSRReplay("x", 0, 0, botMode, reason => replayFailure = reason)))
                     {
-                        // wtf is this game even
-                        Server.ExecuteCommand("bot_quota 1");
-                        Server.ExecuteCommand("bot_add_ct");
-                        Server.ExecuteCommand("bot_quota 1");
+                        Utils.LogError($"Replay bot: no usable first-place replay for Normal/{botMode} on {currentMapName}. {replayFailure}");
+                        return false;
+                    }
 
-                        Utils.LogDebug("Searching for replay bot...");
-
-                        AddTimer(0.0f, () =>
+                    await AwaitEnabled(NextFrameEnabledAsync(() =>
+                    {
+                        ExecuteEnabledCommand("bot_quota_mode normal");
+                        ExecuteEnabledCommand("bot_quota 0");
+                        ExecuteEnabledCommand("bot_chatter off");
+                        ExecuteEnabledCommand("bot_controllable 0");
+                        ExecuteEnabledCommand("bot_kick");
+                        replayBotSlot = -1;
+                        _replayBotPawnHandle = 0;
+                    }));
+                    await AwaitEnabled(Task.Delay(3000, RuntimeToken));
+                    await AwaitEnabled(NextFrameEnabledAsync(() =>
+                    {
+                        ExecuteEnabledCommand("bot_quota 1");
+                        ExecuteEnabledCommand("bot_add_ct");
+                        ExecuteEnabledCommand("bot_quota 1");
+                        botRequested = true;
+                        replayBot = Utilities.GetPlayers().FirstOrDefault(b => b.IsValid && b.IsBot && !b.IsHLTV);
+                        if (replayBot != null) replayBotSlot = replayBot.Slot;
+                    }));
+                    return true;
+                }, async () =>
+                {
+                    bool ready = false;
+                    int botSlot = -1;
+                    PlayerTimerInfo? botTimer = null;
+                    readinessAttempts++;
+                    await AwaitEnabled(NextFrameEnabledAsync(() =>
+                    {
+                        if (!enableReplays || !enableSRreplayBot)
+                            throw new InvalidOperationException("Replay bot was disabled during startup.");
+                        replayBot = Utilities.GetPlayers().FirstOrDefault(b => b.IsValid && b.IsBot && !b.IsHLTV);
+                        bool hasLivePawn = replayBot != null && replayBot.PlayerPawn() is { IsValid: true } && replayBot.PawnIsAlive;
+                        bool onCt = replayBot?.TeamCT() == true;
+                        if (!triedTTeam && ReplayBotStartup.ShouldFallbackToT(replayBot != null, onCt, hasLivePawn, readinessAttempts))
                         {
-                            // find and setup bot
-                            var bot = Utilities.GetPlayers().Where(b => b.IsBot && !b.IsHLTV).FirstOrDefault();
-                            if (bot != null)
+                            ExecuteEnabledCommand("bot_quota 0");
+                            if (replayBot != null && replayBot.IsValid)
                             {
-                                replayBotSlot = bot.Slot;
-                                Utils.LogDebug($"Found replay bot: {bot.PlayerName}");
-
-                                var botPlayerPawn = bot.PlayerPawn();
-                                if (botPlayerPawn == null) return;
-
-                                // bot settings
-                                bot.RemoveWeapons();
-                                botPlayerPawn.Bot!.IsStopping = true;
-                                botPlayerPawn.Bot.IsSleeping = true;
-                                botPlayerPawn.Bot.AllowActive = true;
-
-                                // start bot replay
-                                OnPlayerConnect(bot, true);
-                                ChangePlayerName(bot, replayBotName);
-                                int botSlot = bot.Slot;
-                                string botMode = GetModeName(defaultMode);
-                                playerTimers[botSlot].IsTimerBlocked = true;
-                                _ = Task.Run(async () =>
-                                    await ReplayHandler(bot, botSlot, "1", "69", "unknown", 0, 0, false, botMode));
-                                Utils.LogDebug($"Starting replay for {bot.PlayerName}");
+                                ExecuteEnabledCommand($"kickid {replayBot.UserId}");
+                                replayBotSlot = -1;
                             }
-                            else
-                            {
-                                Utils.LogError($"Failed to spawn replay bot");
-                                return;
-                            }
+                            triedTTeam = true;
+                            Utils.LogDebug("Replay bot: CT has no usable spawn; trying the Terrorist team.");
+                            ExecuteEnabledCommand("bot_add_t");
+                            ExecuteEnabledCommand("bot_quota 1");
+                            replayBot = null;
+                            return;
+                        }
+                        if (replayBot == null) return;
+                        replayBotSlot = replayBot.Slot;
+                        var pawn = replayBot.PlayerPawn();
+                        if (pawn == null || !pawn.IsValid || !replayBot.PawnIsAlive ||
+                            pawn.MovementServices == null || (!replayBot.TeamT() && !replayBot.TeamCT())) return;
 
-                            // kick unused bots if there are any
-                            var bots = Utilities.GetPlayers()
-                                .Where(b => b.IsBot && !b.IsHLTV && b.Slot != replayBotSlot);
-                            foreach (var kicked in bots)
-                            {
-                                OnPlayerDisconnect(kicked, true);
-                                Server.ExecuteCommand("bot_quota 1");
-                                Server.ExecuteCommand($"kickid {kicked.UserId}");
-                                Server.ExecuteCommand("bot_quota 1");
-                                Utils.LogDebug($"Kicking unused bot on spawn... {kicked.PlayerName}");
-                            }
-                        });
-                    }, TimerFlags.STOP_ON_MAPCHANGE);
-                }, TimerFlags.STOP_ON_MAPCHANGE);
-            });
+                        OnPlayerConnect(replayBot, true);
+                        botSlot = replayBot.Slot;
+                        if (!playerTimers.TryGetValue(botSlot, out botTimer) || botTimer.MovementService == null) return;
+                        botTimer.IsTimerBlocked = true;
+                        botTimer.IsRecordingReplay = false;
+                        botTimer.Mode = botMode;
+                        botTimer.changedStyle = false;
+                        ChangePlayerName(replayBot, replayBotName);
+                        ready = true;
+                    }));
+                    if (!ready) return false;
+
+                    await AwaitEnabled(ReplayHandler(replayBot!, botSlot, "1", "69", "unknown", 0, 0, false, botMode));
+                    await AwaitEnabled(NextFrameEnabledAsync(() =>
+                    {
+                        if (!replayBot!.IsValid || !playerTimers.TryGetValue(botSlot, out var timer) ||
+                            !ReferenceEquals(timer, botTimer) || !timer.IsReplaying ||
+                            !playerReplays.TryGetValue(botSlot, out var replay) || replay.replayFrames.Count == 0)
+                            throw new InvalidOperationException("The first-place replay did not load for the bot.");
+                        Utils.LogDebug($"Replay bot started: {replayBot.PlayerName}, {replay.replayFrames.Count} frames, Normal/{botMode}.");
+                    }));
+                    return true;
+                }, () => AwaitEnabled(Task.Delay(250, RuntimeToken)), RuntimeToken);
+
+                if (!started && botRequested)
+                    Utils.LogError("Replay bot: timed out waiting for a living bot pawn and movement services.");
+                if (!started && botRequested) await RemoveFailedReplayBot(replayBot);
+            }
+            catch (OperationCanceledException) when (!IsEnabled) { }
+            catch (Exception ex)
+            {
+                Utils.LogError($"Replay bot startup failed: {ex.Message}");
+                if (botRequested) await RemoveFailedReplayBot(replayBot);
+            }
         }
 
-        public async Task<bool> CheckSRReplay(string topSteamID = "x", int bonusX = 0, int style = 0, string mode = "")
+        private Task RemoveFailedReplayBot(CCSPlayerController? bot) => NextFrameEnabledAsync(() =>
+        {
+            ExecuteEnabledCommand("bot_quota 0");
+            bot ??= Utilities.GetPlayers().FirstOrDefault(p => p.IsValid && p.IsBot && !p.IsHLTV);
+            if (bot == null || !bot.IsValid || !bot.IsBot) return;
+            ExecuteEnabledCommand($"kickid {bot.UserId}");
+            OnPlayerDisconnect(bot, true);
+            _replayBotPawnHandle = 0;
+        });
+
+        private void ReplayBotOnTick(CCSPlayerController bot)
+        {
+            if (!enableReplays || !enableSRreplayBot || !IsAllowedPlayer(bot)) return;
+            var pawn = bot.PlayerPawn();
+            if (pawn == null || !pawn.IsValid || pawn.MovementServices == null ||
+                !playerTimers.TryGetValue(bot.Slot, out var timer) || !timer.IsReplaying ||
+                !playerReplays.TryGetValue(bot.Slot, out var replay) || replay.replayFrames.Count == 0) return;
+
+            // A new pawn after death/round restart needs new movement services.
+            // Keep playback out of human AFK, weapons, rank and movement logic.
+            if (_replayBotPawnHandle != pawn.Handle)
+            {
+                timer.MovementService = new CCSPlayer_MovementServices(pawn.MovementServices.Handle);
+                foreach (var key in specTargets.Where(pair => pair.Value.Slot == bot.Slot).Select(pair => pair.Key).ToArray())
+                    specTargets.Remove(key);
+                specTargets[pawn.EntityHandle.Index] = bot;
+                bot.RemoveWeapons();
+                if (pawn.Bot != null)
+                {
+                    pawn.Bot.IsStopping = true;
+                    pawn.Bot.IsSleeping = true;
+                    pawn.Bot.AllowActive = true;
+                }
+                _replayBotPawnHandle = pawn.Handle;
+            }
+            timer.IsTimerBlocked = true;
+            timer.IsRecordingReplay = false;
+            ReplayPlay(bot);
+        }
+
+        public async Task<bool> CheckSRReplay(string topSteamID = "x", int bonusX = 0, int style = 0, string mode = "",
+            Action<string>? reportFailure = null)
         {
             var (srSteamID, srPlayerName, srTime) = ("null", "null", 0);
 
             if (topSteamID == "x")
             {
                 if (enableDb)
-                    (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamIDFromDatabase(bonusX, 0, style, mode);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetMapRecordSteamIDFromDatabase(bonusX, 1, style, mode));
                 else
-                    (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamID(bonusX);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetMapRecordSteamID(bonusX, 1));
+                if (srSteamID == "null" || srTime <= 0)
+                {
+                    reportFailure?.Invoke("No first-place record exists for this map/style/mode.");
+                    return false;
+                }
             }
             
             string ext = useBinaryReplays ? "dat" : "json";
@@ -595,10 +725,12 @@ namespace SharpTimer
                     {
                         using var reader = new BinaryReader(File.Open(playerReplaysPath, FileMode.Open));
                         var version = reader.ReadInt32();
+                        if (version != REPLAY_VERSION)
+                            reportFailure?.Invoke($"Unsupported replay version {version} at {playerReplaysPath}.");
                         return version == REPLAY_VERSION;
                     }
 
-                    var jsonString = await File.ReadAllTextAsync(playerReplaysPath);
+                    var jsonString = await AwaitEnabled(File.ReadAllTextAsync(playerReplaysPath));
                     if (!jsonString.Contains("PositionString"))
                     {
                         var indexedReplayFrames = JsonSerializer.Deserialize<List<IndexedReplayFrames>>(jsonString);
@@ -609,10 +741,12 @@ namespace SharpTimer
                         }
                     }
                 }
+                reportFailure?.Invoke($"Replay file missing or unsupported: {playerReplaysPath}");
                 return false;
             }
             catch (Exception ex)
             {
+                reportFailure?.Invoke($"Cannot read {playerReplaysPath}: {ex.Message}");
                 Console.WriteLine($"Error during deserialization: {ex.Message}");
                 return false;
             }

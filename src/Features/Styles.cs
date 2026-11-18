@@ -9,9 +9,10 @@ namespace SharpTimer
     {
         public void setStyle(CCSPlayerController player, int style)
         {
+            if (!IsEnabled) return;
             playerTimers[player.Slot].RespawnPos = "";
             playerTimers[player.Slot].BonusRespawnPos = "";
-            AddTimer(0.1f, () =>
+            AddEnabledTimer(0.1f, () =>
             {
                 SetNormalStyle(player);
                 switch (style)

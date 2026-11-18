@@ -242,7 +242,7 @@ namespace SharpTimer
 
             try
             {
-                JsonDocument? jsonDoc = await Utils.LoadJson(mapRecordsPath);
+                JsonDocument? jsonDoc = await AwaitEnabled(Utils.LoadJson(mapRecordsPath));
                 if (jsonDoc != null)
                 {
                     var root = jsonDoc.RootElement;
@@ -331,12 +331,12 @@ namespace SharpTimer
             {
                 string currentMapNamee = bonusX == 0 ? currentMapName! : $"{currentMapName}_bonus{bonusX}";
 
-                int savedPlayerTime = await GetPreviousPlayerRecordFromDatabase(steamId, currentMapName!, playerName, bonusX, style, mode);
+                int savedPlayerTime = await AwaitEnabled(GetPreviousPlayerRecordFromDatabase(steamId, currentMapName!, playerName, bonusX, style, mode));
 
                 if (savedPlayerTime == 0)
                     return getRankImg ? UnrankedIcon : UnrankedTitle;
 
-                Dictionary<int, PlayerRecord> sortedRecords = await GetSortedRecordsFromDatabase(0, bonusX, currentMapNamee, style, mode);
+                Dictionary<int, PlayerRecord> sortedRecords = await AwaitEnabled(GetSortedRecordsFromDatabase(0, bonusX, currentMapNamee, style, mode));
 
                 int placement = sortedRecords.Count(kv => kv.Value.TimerTicks < savedPlayerTime) + 1;
                 int totalPlayers = sortedRecords.Count;
@@ -360,14 +360,14 @@ namespace SharpTimer
                 else
                     currentMapNamee = bonusX == 0 ? mapname! : $"{mapname}_bonus{bonusX}";
 
-                int savedPlayerTime = await GetPreviousPlayerRecordFromDatabase(steamId, currentMapNamee!, playerName, bonusX, style, mode);
+                int savedPlayerTime = await AwaitEnabled(GetPreviousPlayerRecordFromDatabase(steamId, currentMapNamee!, playerName, bonusX, style, mode));
                 
                 if (savedPlayerTime == 0)
                     savedPlayerTime = timerTicks;
 
                 Dictionary<int, PlayerRecord> sortedRecords;
                 
-                sortedRecords = await GetSortedRecordsFromDatabase(0, bonusX, currentMapNamee, style, mode);
+                sortedRecords = await AwaitEnabled(GetSortedRecordsFromDatabase(0, bonusX, currentMapNamee, style, mode));
 
                 int placement = 1;
                 int totalPlayers = sortedRecords.Count;
@@ -400,14 +400,14 @@ namespace SharpTimer
             {
                 decimal savedPlayerTime;
                 
-                savedPlayerTime = await GetPreviousPlayerRecordFromGlobal(playerId, mode, style, bonus);
+                savedPlayerTime = await AwaitEnabled(GetPreviousPlayerRecordFromGlobal(playerId, mode, style, bonus));
 
                 if (savedPlayerTime == 0)
                     savedPlayerTime = time;
 
                 Dictionary<int, GlobalRecord> sortedRecords;
                 
-                sortedRecords = await GetSortedRecordsFromGlobal(style, mode, bonus);
+                sortedRecords = await AwaitEnabled(GetSortedRecordsFromGlobal(style, mode, bonus));
 
                 int placement = 1;
                 int totalPlayers = sortedRecords.Count;
@@ -440,12 +440,12 @@ namespace SharpTimer
             {
                 string currentMapNamee = bonusX == 0 ? currentMapName! : $"{currentMapName}_bonus{bonusX}";
 
-                int savedPlayerTime = await GetPreviousPlayerStageRecordFromDatabase(steamId, currentMapName!, stage, playerName, bonusX);
+                int savedPlayerTime = await AwaitEnabled(GetPreviousPlayerStageRecordFromDatabase(steamId, currentMapName!, stage, playerName, bonusX));
 
                 if (savedPlayerTime == 0)
                     return getRankImg ? UnrankedIcon : UnrankedTitle;
 
-                Dictionary<string, PlayerRecord> sortedRecords = await GetSortedStageRecordsFromDatabase(stage, 0, bonusX, currentMapNamee, style, mode);
+                Dictionary<string, PlayerRecord> sortedRecords = await AwaitEnabled(GetSortedStageRecordsFromDatabase(stage, 0, bonusX, currentMapNamee, style, mode));
 
                 int placement = sortedRecords.Count(kv => kv.Value.TimerTicks < savedPlayerTime) + 1;
                 int totalPlayers = sortedRecords.Count;
@@ -464,7 +464,7 @@ namespace SharpTimer
         {
             try
             {
-                int savedPlayerPoints = enableDb ? await GetPlayerPointsFromDatabase(steamId, playerName) : 0;
+                int savedPlayerPoints = enableDb ? await AwaitEnabled(GetPlayerPointsFromDatabase(steamId, playerName)) : 0;
 
                 if (getPointsOnly)
                     return savedPlayerPoints.ToString();
@@ -472,7 +472,7 @@ namespace SharpTimer
                 if (savedPlayerPoints == 0 || savedPlayerPoints <= minGlobalPointsForRank)
                     return getRankImg ? UnrankedIcon : UnrankedTitle;
 
-                Dictionary<string, PlayerPoints> sortedPoints = enableDb ? await GetSortedPointsFromDatabase() : [];
+                Dictionary<string, PlayerPoints> sortedPoints = enableDb ? await AwaitEnabled(GetSortedPointsFromDatabase()) : [];
 
                 int placement = sortedPoints.Count(kv => kv.Value.GlobalPoints > savedPlayerPoints) + 1;
                 int totalPlayers = sortedPoints.Count;
@@ -634,7 +634,7 @@ namespace SharpTimer
 
         public async Task PrintMapTimeToChat(CCSPlayerController player, string steamID, string playerName, int oldticks, int newticks, int bonusX = 0, int timesFinished = 0, int style = 0, int prevSR = 0, string mode = "")
         {
-            string ranking = await GetPlayerMapPlacementWithTotal(steamID, playerName, false, true, bonusX, style, false, mode);
+            string ranking = await AwaitEnabled(GetPlayerMapPlacementWithTotal(steamID, playerName, false, true, bonusX, style, false, mode));
 
             bool newSR = Utils.GetNumberBeforeSlash(ranking) == 1 && (oldticks > newticks || oldticks == 0);
             bool beatPB = oldticks > newticks;
@@ -647,7 +647,7 @@ namespace SharpTimer
                 timeDifference = $"[{Utils.FormatTimeDifference(newticks, oldticks)}{ChatColors.White}] ";
             }
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 bool playerValid = IsAllowedPlayer(player);
                 if (newSR)
@@ -662,20 +662,20 @@ namespace SharpTimer
                         Utils.PrintToChatAll(Localizer["new_server_record", playerName]);
                         if (playerValid) PlaySound(player, srSound, srSoundAll);
                     }
-                    if (discordWebhookPrintSR && discordWebhookEnabled && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, true, timeDifferenceNoCol, bonusX, style));
+                    if (discordWebhookPrintSR && discordWebhookEnabled && enableDb) _ = RunEnabled(async () => await AwaitEnabled(DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, true, timeDifferenceNoCol, bonusX, style)));
                 }
                 else if (beatPB)
                 {
                     if (bonusX != 0) Utils.PrintToChatAll(Localizer["new_pb_record_bonus", playerName, bonusX]);
                     else Utils.PrintToChatAll(Localizer["new_pb_record", playerName]);
-                    if (discordWebhookPrintPB && discordWebhookEnabled && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, false, timeDifferenceNoCol, bonusX, style));
+                    if (discordWebhookPrintPB && discordWebhookEnabled && enableDb) _ = RunEnabled(async () => await AwaitEnabled(DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, false, timeDifferenceNoCol, bonusX, style)));
                     if (playerValid) PlaySound(player, pbSound);
                 }
                 else
                 {
                     if (bonusX != 0) Utils.PrintToChatAll(Localizer["map_finish_bonus", playerName, bonusX]);
                     else Utils.PrintToChatAll(Localizer["map_finish", playerName]);
-                    if (discordWebhookPrintPB && discordWebhookEnabled && timesFinished == 1 && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, false, timeDifferenceNoCol, bonusX, style));
+                    if (discordWebhookPrintPB && discordWebhookEnabled && timesFinished == 1 && enableDb) _ = RunEnabled(async () => await AwaitEnabled(DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, false, timeDifferenceNoCol, bonusX, style)));
                     if (playerValid) PlaySound(player, timerSound);
                 }
 
@@ -686,7 +686,7 @@ namespace SharpTimer
                 if (enableStyles && style != 0) Utils.PrintToChatAll(Localizer["timer_style", GetNamedStyle(style)]);
                 if (mode != GetModeName(defaultMode))Utils.PrintToChatAll(Localizer["timer_mode", mode]);
                 if (enableReplays && enableSRreplayBot && newSR && (oldticks > newticks || oldticks == 0) && mode == GetModeName(defaultMode))
-                    _ = Task.Run(async () => await SpawnReplayBot());
+                    _ = RunEnabled(async () => await AwaitEnabled(SpawnReplayBot()));
                 
                 if (!playerValid) return;
 
@@ -703,7 +703,7 @@ namespace SharpTimer
         }
         public async Task PrintStageTimeToChat(CCSPlayerController player, string steamID, string playerName, int oldticks, int newticks, int stage, int bonusX = 0, int prevSR = 0, int style = 0, string mode = "")
         {
-            string ranking = await GetPlayerStagePlacementWithTotal(steamID, playerName, stage, style, mode, false, true, bonusX);
+            string ranking = await AwaitEnabled(GetPlayerStagePlacementWithTotal(steamID, playerName, stage, style, mode, false, true, bonusX));
 
             bool newSR = Utils.GetNumberBeforeSlash(ranking) == 1 && (oldticks > newticks || oldticks == 0);
             bool beatPB = oldticks > newticks;
@@ -716,7 +716,7 @@ namespace SharpTimer
                 timeDifference = $"[{Utils.FormatTimeDifference(newticks, oldticks)}{ChatColors.White}] ";
             }
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 bool playerValid = IsAllowedPlayer(player);
                 if (newSR)
@@ -734,7 +734,7 @@ namespace SharpTimer
                     if (playerValid) PlaySound(player, srSound, stageSoundAll ? true : false);
                     Utils.PrintToChatAll(Localizer["timer_time", newTime, timeDifference]);
                     //TODO: Discord webhook stage sr
-                    // if (discordWebhookPrintSR && discordWebhookEnabled && enableDb) _ = Task.Run(async () => await DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, true, timeDifferenceNoCol, bonusX, style));
+                    // if (discordWebhookPrintSR && discordWebhookEnabled && enableDb) _ = RunEnabled(async () => await DiscordRecordMessage(playerName, newTime, steamID, ranking, timesFinished, true, timeDifferenceNoCol, bonusX, style));
                 }
             });
         }
@@ -755,6 +755,13 @@ namespace SharpTimer
                     return;
                 }
 
+                if (_playerSettings.TryGetValue(player.Slot, out var original) && !original.TagsCaptured)
+                {
+                    original.ChatTag = TagApi.GetAttribute(player, Tags.TagType.ChatTag);
+                    original.ScoreTag = TagApi.GetAttribute(player, Tags.TagType.ScoreTag);
+                    original.TagsCaptured = true;
+                }
+
                 string clanTag = $"{rank} " +
                  (playerTimers[player.Slot].IsVip ? $"{customVIPTag} " : "");
 
@@ -766,7 +773,7 @@ namespace SharpTimer
                 {
                     TagApi.ResetAttribute(player, Tags.TagType.ChatTag);
 
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         string oldChatTag = TagApi.GetAttribute(player, Tags.TagType.ChatTag) ?? "";
                         TagApi.SetAttribute(player, Tags.TagType.ChatTag, oldChatTag + chatTag);
@@ -777,7 +784,7 @@ namespace SharpTimer
                 {
                     TagApi.ResetAttribute(player, Tags.TagType.ScoreTag);
 
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         string oldClanTag = TagApi.GetAttribute(player, Tags.TagType.ScoreTag) ?? "";
                         TagApi.SetAttribute(player, Tags.TagType.ScoreTag, oldClanTag + clanTag);
@@ -894,7 +901,7 @@ namespace SharpTimer
 
             foreach (var target in targets)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     try
                     {

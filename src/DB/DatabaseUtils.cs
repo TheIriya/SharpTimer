@@ -39,20 +39,21 @@ namespace SharpTimer
     {
         public async Task<IDbConnection> OpenConnectionAsync()
         {
+            RequireEnabled();
             IDbConnection? connection = null;
             switch (dbType)
             {
                 case DatabaseType.MySQL:
-                    connection = new MySqlConnection(await GetConnectionStringFromConfigFile());
-                    await (connection as MySqlConnection)!.OpenAsync();
+                    connection = new MySqlConnection(await AwaitEnabled(GetConnectionStringFromConfigFile()));
+                    await AwaitEnabled((connection as MySqlConnection)!.OpenAsync(RuntimeToken));
                     break;
                 case DatabaseType.PostgreSQL:
-                    connection = new NpgsqlConnection(await GetConnectionStringFromConfigFile());
-                    await (connection as NpgsqlConnection)!.OpenAsync();
+                    connection = new NpgsqlConnection(await AwaitEnabled(GetConnectionStringFromConfigFile()));
+                    await AwaitEnabled((connection as NpgsqlConnection)!.OpenAsync(RuntimeToken));
                     break;
                 case DatabaseType.SQLite:
-                    connection = new SqliteConnection(await GetConnectionStringFromConfigFile());
-                    await (connection as SqliteConnection)!.OpenAsync();
+                    connection = new SqliteConnection(await AwaitEnabled(GetConnectionStringFromConfigFile()));
+                    await AwaitEnabled((connection as SqliteConnection)!.OpenAsync(RuntimeToken));
                     break;
             }
 
@@ -68,6 +69,7 @@ namespace SharpTimer
 
         public IDbConnection OpenConnection()
         {
+            RequireEnabled();
             IDbConnection? connection = null;
             switch (dbType)
             {
@@ -182,7 +184,7 @@ namespace SharpTimer
                 }
                 else
                 {
-                    using (JsonDocument? jsonConfig = await Utils.LoadJson(dbPath)!)
+                    using (JsonDocument? jsonConfig = await AwaitEnabled(Utils.LoadJson(dbPath)!))
                     {
                         if (jsonConfig != null)
                         {
@@ -379,24 +381,24 @@ namespace SharpTimer
                     break;
             }
 
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
                     // Check PlayerRecords
                     Utils.LogDebug($"Checking PlayerRecords Table...");
-                    await CreatePlayerRecordsTableAsync(connection);
-                    await UpdateTableColumnsAsync(connection, "PlayerRecords", playerRecords!);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
+                    await AwaitEnabled(UpdateTableColumnsAsync(connection, "PlayerRecords", playerRecords!));
 
                     // Check PlayerStats
                     Utils.LogDebug($"Checking PlayerStats Table...");
-                    await CreatePlayerStatsTableAsync(connection);
-                    await UpdateTableColumnsAsync(connection, $"{PlayerStatsTable}", playerStats!);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
+                    await AwaitEnabled(UpdateTableColumnsAsync(connection, $"{PlayerStatsTable}", playerStats!));
 
                     // Check PlayerStageTimes
                     Utils.LogDebug($"Checking PlayerStageTimes Table...");
-                    await CreatePlayerStageTimesTableAsync(connection);
-                    await UpdateTableColumnsAsync(connection, "PlayerStageTimes", playerStageTimes!);
+                    await AwaitEnabled(CreatePlayerStageTimesTableAsync(connection));
+                    await AwaitEnabled(UpdateTableColumnsAsync(connection, "PlayerStageTimes", playerStageTimes!));
                 }
                 catch (Exception ex)
                 {
@@ -465,7 +467,8 @@ namespace SharpTimer
             {
                 try
                 {
-                    await createTableCommand!.ExecuteNonQueryAsync();
+                    RequireEnabled();
+                    await AwaitEnabled(createTableCommand!.ExecuteNonQueryAsync(RuntimeToken));
                 }
                 catch (Exception ex)
                 {
@@ -476,15 +479,15 @@ namespace SharpTimer
 
         private async Task UpdateTableColumnsAsync(IDbConnection connection, string tableName, string[] columns)
         {
-            if (await TableExistsAsync(connection, tableName))
+            if (await AwaitEnabled(TableExistsAsync(connection, tableName)))
             {
                 foreach (string columnDefinition in columns)
                 {
                     string columnName = columnDefinition.Split(' ')[0];
-                    if (!await ColumnExistsAsync(connection, tableName, columnName))
+                    if (!await AwaitEnabled(ColumnExistsAsync(connection, tableName, columnName)))
                     {
                         Utils.LogDebug($"Adding column {columnName} to {tableName}...");
-                        await AddColumnToTableAsync(connection, tableName, columnDefinition);
+                        await AwaitEnabled(AddColumnToTableAsync(connection, tableName, columnDefinition));
                     }
                 }
             }
@@ -519,7 +522,7 @@ namespace SharpTimer
             {
                 try
                 {
-                    int count = Convert.ToInt32(await command!.ExecuteScalarAsync());
+                    int count = Convert.ToInt32(await AwaitEnabled(command!.ExecuteScalarAsync(RuntimeToken)));
                     return count > 0;
                 }
                 catch (Exception ex)
@@ -561,9 +564,9 @@ namespace SharpTimer
                 {
                     try
                     {
-                        using (var reader = await command!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(command!.ExecuteReaderAsync(RuntimeToken)))
                         {
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 if (reader.GetString(1) == columnName) return true;
                             }
@@ -581,7 +584,7 @@ namespace SharpTimer
                 {
                     try
                     {
-                        int count = Convert.ToInt32(await command!.ExecuteScalarAsync());
+                        int count = Convert.ToInt32(await AwaitEnabled(command!.ExecuteScalarAsync(RuntimeToken)));
                         return count > 0;
                     }
                     catch (Exception ex)
@@ -620,7 +623,8 @@ namespace SharpTimer
             {
                 try
                 {
-                    await command!.ExecuteNonQueryAsync();
+                    RequireEnabled();
+                    await AwaitEnabled(command!.ExecuteNonQueryAsync(RuntimeToken));
                 }
                 catch (Exception ex)
                 {
@@ -694,7 +698,8 @@ namespace SharpTimer
             {
                 try
                 {
-                    await command!.ExecuteNonQueryAsync();
+                    RequireEnabled();
+                    await AwaitEnabled(command!.ExecuteNonQueryAsync(RuntimeToken));
                 }
                 catch (Exception ex)
                 {
@@ -757,7 +762,8 @@ namespace SharpTimer
             {
                 try
                 {
-                    await command!.ExecuteNonQueryAsync();
+                    RequireEnabled();
+                    await AwaitEnabled(command!.ExecuteNonQueryAsync(RuntimeToken));
                 }
                 catch (Exception ex)
                 {
@@ -790,9 +796,9 @@ namespace SharpTimer
                 int playerPoints = 0;
                 bool beatPB = false;
 
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
 
                     string formattedTime = Utils.FormatTime(timerTicks);
                     string? selectQuery;
@@ -826,7 +832,7 @@ namespace SharpTimer
                     selectCommand!.AddParameterWithValue("@Style", style);
                     selectCommand!.AddParameterWithValue("@Mode", mode);
 
-                    var row = await selectCommand!.ExecuteReaderAsync();
+                    var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                     if (row.Read())
                     {
@@ -854,7 +860,7 @@ namespace SharpTimer
                             beatPB = false;
                         }
 
-                        await row.CloseAsync();
+                        await AwaitEnabled(row.CloseAsync());
                         // Update or insert the record
                         string? upsertQuery;
                         DbCommand? upsertCommand;
@@ -937,31 +943,32 @@ namespace SharpTimer
                             upsertCommand!.AddParameterWithValue("@Style", style);
                             upsertCommand!.AddParameterWithValue("@Mode", mode);
 
-                            var prevSRData = await GetMapRecordSteamIDFromDatabase(bonusX, 0, style, mode);
+                            var prevSRData = await AwaitEnabled(GetMapRecordSteamIDFromDatabase(bonusX, 0, style, mode));
                             int prevSRTimerTicks = prevSRData.Item3;
                             
-                            await upsertCommand!.ExecuteNonQueryAsync();
-                            Server.NextFrame(() =>
+                            RequireEnabled();
+                            await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
+                            NextFrameEnabled(() =>
                                 Utils.LogDebug(
                                     $"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
                             
                             // Re-check validity on the main thread;
-                            Server.NextFrame(() =>
+                            NextFrameEnabled(() =>
                             {
                                 if (!IsAllowedPlayer(player)) return;
-                                _ = Task.Run(async () => await PrintMapTimeToChat(player!,
+                                _ = RunEnabled(async () => await AwaitEnabled(PrintMapTimeToChat(player!,
                                     steamId, playerName, dBtimerTicks, timerTicks, bonusX, dBtimesFinished, style,
-                                    prevSRTimerTicks, mode));
-                                _ = Task.Run(async () => await RankCommandHandler(player, steamId, slot, playerName, true, style, mode));
+                                    prevSRTimerTicks, mode)));
+                                _ = RunEnabled(async () => await AwaitEnabled(RankCommandHandler(player, steamId, slot, playerName, true, style, mode)));
                             });
 
                             if (globalRanksEnabled)
                             {
-                                var (oldPts, newPts) = await SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, mode,
+                                var (oldPts, newPts) = await AwaitEnabled(SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, mode,
                                     beatPB,
-                                    bonusX, style, dBtimesFinished);
+                                    bonusX, style, dBtimesFinished));
                                 
-                                Server.NextFrame(() => Utils.PrintToChat(player!, Localizer["gained_points",
+                                NextFrameEnabled(() => Utils.PrintToChat(player!, Localizer["gained_points",
                                     playerName, Convert.ToInt32(newPts - oldPts),
                                     newPts]));
                             }
@@ -974,7 +981,7 @@ namespace SharpTimer
 
                                 if (shouldDump)
                                 {
-                                    Server.NextFrame(() =>
+                                    NextFrameEnabled(() =>
                                     {
                                         if (!IsAllowedPlayer(player)) return;
                                         if (!playerTimers.TryGetValue(slot, out var replayTimer)) return;
@@ -982,14 +989,14 @@ namespace SharpTimer
                                         string replayMode = replayTimer.Mode;
 
                                         if (useBinaryReplays)
-                                            _ = Task.Run(async () => await DumpReplayToBinary(steamId, slot, bonusX, replayStyle, replayMode));
+                                            _ = RunEnabled(async () => await AwaitEnabled(DumpReplayToBinary(steamId, slot, bonusX, replayStyle, replayMode)));
                                         else
-                                            _ = Task.Run(async () => await DumpReplayToJson(steamId, slot, bonusX, replayStyle, replayMode));
+                                            _ = RunEnabled(async () => await AwaitEnabled(DumpReplayToJson(steamId, slot, bonusX, replayStyle, replayMode)));
                                     });
                                 }
                             }
 
-                            Server.NextFrame(() =>
+                            NextFrameEnabled(() =>
                             {
                                  if (globalDisabled || !playerCache.PlayerID.ContainsKey(slot))
                                     return;
@@ -1004,13 +1011,13 @@ namespace SharpTimer
                                  string replayHash = GetHash();
                                  string replayBinary = (useBinaryReplays && style == 0) ? GetReplayBinary(player!, player!.Slot) : "";
 
-                                 _ = Task.Run(async () =>
+                                 _ = RunEnabled(async () =>
                                  {
                                      try
                                      {
                                          var beatGlobalPB = false;
-                                         var prevPBTime = await GetPreviousPlayerRecordFromGlobal(playerId, playerMode,
-                                            GetNamedStyle(style), bonusX);
+                                         var prevPBTime = await AwaitEnabled(GetPreviousPlayerRecordFromGlobal(playerId, playerMode,
+                                            GetNamedStyle(style), bonusX));
                                          if (prevPBTime > Utils.TicksToDecimal(timerTicks) || prevPBTime == 0)
                                             beatGlobalPB = true;
 
@@ -1026,8 +1033,8 @@ namespace SharpTimer
                                              created_on = timeCreated
                                          };
 
-                                         await SubmitRecordAsync(record_payload);
-                                         int recordID = await GetRecordIDAsync(playerId, timeCreated);
+                                         await AwaitEnabled(SubmitRecordAsync(record_payload));
+                                         int recordID = await AwaitEnabled(GetRecordIDAsync(playerId, timeCreated));
                                          if (beatGlobalPB && useBinaryReplays && style == 0)
                                          {
                                              var replay_payload = new ReplayData
@@ -1040,12 +1047,12 @@ namespace SharpTimer
                                                  replay_data = replayBinary
                                              };
 
-                                             await SubmitReplayAsync(replay_payload);
+                                             await AwaitEnabled(SubmitReplayAsync(replay_payload));
                                          }
                                      }
                                      catch (Exception ex)
                                      {
-                                         Server.NextFrame(() => Utils.LogError($"Error submitting global record: {ex.Message}"));
+                                         NextFrameEnabled(() => Utils.LogError($"Error submitting global record: {ex.Message}"));
                                      }
                                  });
                             });
@@ -1053,8 +1060,8 @@ namespace SharpTimer
                     }
                     else
                     {
-                        Server.NextFrame(() => Utils.LogDebug($"No player record yet"));
-                        await row.CloseAsync();
+                        NextFrameEnabled(() => Utils.LogDebug($"No player record yet"));
+                        await AwaitEnabled(row.CloseAsync());
 
                         string? upsertQuery;
                         DbCommand? upsertCommand;
@@ -1094,33 +1101,34 @@ namespace SharpTimer
                             upsertCommand!.AddParameterWithValue("@Style", style);
                             upsertCommand!.AddParameterWithValue("@Mode", mode);
                             
-                            var prevSRData = await GetMapRecordSteamIDFromDatabase(bonusX, 0, style, mode);
+                            var prevSRData = await AwaitEnabled(GetMapRecordSteamIDFromDatabase(bonusX, 0, style, mode));
                             int prevSRTimerTicks = prevSRData.Item3;
                             
-                            await upsertCommand!.ExecuteNonQueryAsync();
+                            RequireEnabled();
+                            await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
 
                             if (globalRanksEnabled)
                             {
-                                var (oldPts, newPts) = await SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, mode,
+                                var (oldPts, newPts) = await AwaitEnabled(SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, mode,
                                     beatPB,
-                                    bonusX, style, dBtimesFinished);
+                                    bonusX, style, dBtimesFinished));
                                 
-                                Server.NextFrame(() => Utils.PrintToChat(player!, Localizer["gained_points",
+                                NextFrameEnabled(() => Utils.PrintToChat(player!, Localizer["gained_points",
                                     playerName, Convert.ToInt32(newPts - oldPts),
                                     newPts]));
                             }
                             
-                            Server.NextFrame(() =>
+                            NextFrameEnabled(() =>
                                 Utils.LogDebug(
                                     $"Saved player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
 
                             // re-check validity on the main thread
-                            Server.NextFrame(() =>
+                            NextFrameEnabled(() =>
                             {
                                 if (!IsAllowedPlayer(player)) return;
-                                _ = Task.Run(async () => await RankCommandHandler(player, steamId, slot, playerName, true, style, mode));
-                                _ = Task.Run(async () => await PrintMapTimeToChat(player!,
-                                    steamId, playerName, dBtimerTicks, timerTicks, bonusX, 1, style, prevSRTimerTicks, mode));
+                                _ = RunEnabled(async () => await AwaitEnabled(RankCommandHandler(player, steamId, slot, playerName, true, style, mode)));
+                                _ = RunEnabled(async () => await AwaitEnabled(PrintMapTimeToChat(player!,
+                                    steamId, playerName, dBtimerTicks, timerTicks, bonusX, 1, style, prevSRTimerTicks, mode)));
                             });
 
                             if (enableReplays)
@@ -1131,7 +1139,7 @@ namespace SharpTimer
 
                                 if (shouldDump)
                                 {
-                                    Server.NextFrame(() =>
+                                    NextFrameEnabled(() =>
                                     {
                                         if (!IsAllowedPlayer(player)) return;
                                         if (!playerTimers.TryGetValue(slot, out var replayTimer)) return;
@@ -1139,14 +1147,14 @@ namespace SharpTimer
                                         string replayMode = replayTimer.Mode;
 
                                         if (useBinaryReplays)
-                                            _ = Task.Run(async () => await DumpReplayToBinary(steamId, slot, bonusX, replayStyle, replayMode));
+                                            _ = RunEnabled(async () => await AwaitEnabled(DumpReplayToBinary(steamId, slot, bonusX, replayStyle, replayMode)));
                                         else
-                                            _ = Task.Run(async () => await DumpReplayToJson(steamId, slot, bonusX, replayStyle, replayMode));
+                                            _ = RunEnabled(async () => await AwaitEnabled(DumpReplayToJson(steamId, slot, bonusX, replayStyle, replayMode)));
                                     });
                                 }
                             }
 
-                            Server.NextFrame(() =>
+                            NextFrameEnabled(() =>
                             {
                                 if (globalDisabled || !playerCache.PlayerID.ContainsKey(slot))
                                     return;
@@ -1161,13 +1169,13 @@ namespace SharpTimer
                                 string replayHash = GetHash();
                                 string replayBinary = (useBinaryReplays && style == 0) ? GetReplayBinary(player!, player!.Slot) : "";
 
-                                _ = Task.Run(async () =>
+                                _ = RunEnabled(async () =>
                                 {
                                     try
                                     {
                                         var beatGlobalPB = false;
-                                        var prevPBTime = await GetPreviousPlayerRecordFromGlobal(playerId, playerMode,
-                                            GetNamedStyle(style), bonusX);
+                                        var prevPBTime = await AwaitEnabled(GetPreviousPlayerRecordFromGlobal(playerId, playerMode,
+                                            GetNamedStyle(style), bonusX));
                                         if (prevPBTime > Utils.TicksToDecimal(timerTicks) || prevPBTime == 0)
                                             beatGlobalPB = true;
 
@@ -1183,8 +1191,8 @@ namespace SharpTimer
                                             created_on = timeCreated
                                         };
 
-                                        await SubmitRecordAsync(record_payload);
-                                        int recordID = await GetRecordIDAsync(playerId, timeCreated);
+                                        await AwaitEnabled(SubmitRecordAsync(record_payload));
+                                        int recordID = await AwaitEnabled(GetRecordIDAsync(playerId, timeCreated));
                                         if (beatGlobalPB && useBinaryReplays && style == 0)
                                         {
                                             var replay_payload = new ReplayData
@@ -1197,12 +1205,12 @@ namespace SharpTimer
                                                 replay_data = replayBinary
                                             };
 
-                                            await SubmitReplayAsync(replay_payload);
+                                            await AwaitEnabled(SubmitReplayAsync(replay_payload));
                                         }
                                     }
                                     catch (Exception ex)
                                     {
-                                        Server.NextFrame(() => Utils.LogError($"Error submitting global record: {ex.Message}"));
+                                        NextFrameEnabled(() => Utils.LogError($"Error submitting global record: {ex.Message}"));
                                     }
                                 });
                             });
@@ -1212,7 +1220,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError(
                         $"Error saving player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database: {ex.Message}"));
             }
@@ -1243,9 +1251,9 @@ namespace SharpTimer
                 bool hideChatSpeed = false;
                 string mode = "";
 
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerStatsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
 
                     string? selectQuery;
                     DbCommand? selectCommand;
@@ -1276,7 +1284,7 @@ namespace SharpTimer
                     {
                         selectCommand!.AddParameterWithValue("@SteamID", steamId);
 
-                        var row = await selectCommand!.ExecuteReaderAsync();
+                        var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                         if (row.Read())
                         {
@@ -1317,7 +1325,7 @@ namespace SharpTimer
                             // Modify the stats
                             timesConnected++;
                             lastConnected = timeNowUnix;
-                            Server.NextFrame(() =>
+                            NextFrameEnabled(() =>
                             {
                                 if (string.IsNullOrEmpty(mode))
                                     mode = GetModeName(defaultMode);
@@ -1344,7 +1352,7 @@ namespace SharpTimer
                                 }
                             });
 
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
                             // Update or insert the record
 
                             string? upsertQuery;
@@ -1411,19 +1419,20 @@ namespace SharpTimer
                                 upsertCommand!.AddParameterWithValue("@HideChatSpeed", hideChatSpeed);
                                 upsertCommand!.AddParameterWithValue("@Mode", mode);
 
-                                await upsertCommand!.ExecuteNonQueryAsync();
-                                Server.NextFrame(() =>
+                                RequireEnabled();
+                                await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
+                                NextFrameEnabled(() =>
                                     Utils.LogDebug($"Got player stats from database for {playerName}"));
                                 if (connectMsgEnabled)
-                                    Server.NextFrame(() =>
+                                    NextFrameEnabled(() =>
                                         Utils.PrintToChatAll(
                                             $"{Localizer["connected_message", playerName, Utils.FormatOrdinal(timesConnected)]}"));
                             }
                         }
                         else
                         {
-                            Server.NextFrame(() => Utils.LogDebug($"No player stats yet"));
-                            await row.CloseAsync();
+                            NextFrameEnabled(() => Utils.LogDebug($"No player stats yet"));
+                            await AwaitEnabled(row.CloseAsync());
 
                             string? upsertQuery;
                             DbCommand? upsertCommand;
@@ -1468,11 +1477,12 @@ namespace SharpTimer
                                 upsertCommand!.AddParameterWithValue("@HidePlayers", false);
                                 upsertCommand!.AddParameterWithValue("@Mode", GetModeName(defaultMode));
 
-                                await upsertCommand!.ExecuteNonQueryAsync();
-                                Server.NextFrame(() =>
+                                RequireEnabled();
+                                await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
+                                NextFrameEnabled(() =>
                                     Utils.LogDebug($"Got player stats from database for {playerName}"));
                                 if (connectMsgEnabled)
-                                    Server.NextFrame(() =>
+                                    NextFrameEnabled(() =>
                                         Utils.PrintToChatAll($"{Localizer["connected_message_first", playerName]}"));
                             }
                         }
@@ -1481,7 +1491,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error getting player stats from database for {playerName}: {ex}"));
             }
         }
@@ -1508,7 +1518,7 @@ namespace SharpTimer
                 int new_dBtimerTicks = 0;
                 int playerPoints = 0;
 
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
                     string formattedTime = Utils.FormatTime(timerTicks);
                     string? selectQuery;
@@ -1541,7 +1551,7 @@ namespace SharpTimer
                     selectCommand!.AddParameterWithValue("@SteamID", steamId);
                     selectCommand!.AddParameterWithValue("@Stage", stage);
 
-                    var row = await selectCommand!.ExecuteReaderAsync();
+                    var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                     if (row.Read())
                     {
@@ -1560,7 +1570,7 @@ namespace SharpTimer
                                 playerPoints = 320000;
                             }
                             //not saving replays for stage times
-                            //if (enableReplays == true && enableDb) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
+                            //if (enableReplays == true && enableDb) _ = RunEnabled(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
                         }
                         else
                         {
@@ -1568,7 +1578,7 @@ namespace SharpTimer
                             playerPoints = 320000;
                         }
 
-                        await row.CloseAsync();
+                        await AwaitEnabled(row.CloseAsync());
                         // Update or insert the record
                         string? upsertQuery;
                         DbCommand? upsertCommand;
@@ -1650,29 +1660,30 @@ namespace SharpTimer
                             //no points for stage times until points overhaul
                             //if (enableDb && globalRanksEnabled == true && ((dBtimesFinished <= maxGlobalFreePoints && globalRanksFreePointsEnabled == true) || beatPB)) await SavePlayerPoints(steamId, playerName, slot, playerPoints, dBtimerTicks, beatPB, bonusX, style);
                             //dont save stagetimes unless they complete map
-                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && enableDb && timerTicks < dBtimerTicks) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
-                            var prevSRID = await GetStageRecordSteamIDFromDatabase(stage, style, mode);
-                            var prevSR = await GetPreviousPlayerStageRecordFromDatabase(prevSRID.Item1,
-                                currentMapNamee, stage, prevSRID.Item2, bonusX);
-                            await upsertCommand!.ExecuteNonQueryAsync();
-                            Server.NextFrame(() =>
+                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0 && enableDb && timerTicks < dBtimerTicks) NextFrameEnabled(() => _ = RunEnabled(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
+                            var prevSRID = await AwaitEnabled(GetStageRecordSteamIDFromDatabase(stage, style, mode));
+                            var prevSR = await AwaitEnabled(GetPreviousPlayerStageRecordFromDatabase(prevSRID.Item1,
+                                currentMapNamee, stage, prevSRID.Item2, bonusX));
+                            RequireEnabled();
+                            await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
+                            NextFrameEnabled(() =>
                                 Utils.LogDebug(
                                     $"Saved player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"{stage} time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
                             if (enableStageTimes && enableStageSR)
-                                Server.NextFrame(() =>
+                                NextFrameEnabled(() =>
                                 {
                                     if (!IsAllowedPlayer(player)) return;
-                                    _ = Task.Run(async () => await PrintStageTimeToChat(player!,
-                                        steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR, style, mode));
+                                    _ = RunEnabled(async () => await AwaitEnabled(PrintStageTimeToChat(player!,
+                                        steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR, style, mode)));
                                 });
                         }
                     }
                     else
                     {
-                        Server.NextFrame(() => Utils.LogDebug($"No player record yet"));
+                        NextFrameEnabled(() => Utils.LogDebug($"No player record yet"));
                         //dont save stagetimes unless they complete map
-                        //if (enableReplays == true && usePostgres == true) _ = Task.Run(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
-                        await row.CloseAsync();
+                        //if (enableReplays == true && usePostgres == true) _ = RunEnabled(async () => await DumpReplayToJson(player!, steamId, slot, bonusX, playerTimers[slot].currentStyle));
+                        await AwaitEnabled(row.CloseAsync());
 
                         string? upsertQuery;
                         DbCommand? upsertCommand;
@@ -1710,23 +1721,24 @@ namespace SharpTimer
                             upsertCommand!.AddParameterWithValue("@Velocity", velocity);
                             upsertCommand!.AddParameterWithValue("@Style", style);
                             upsertCommand!.AddParameterWithValue("@Mode", mode);
-                            var prevSRID = await GetStageRecordSteamIDFromDatabase(stage, style, mode);
-                            var prevSR = await GetPreviousPlayerStageRecordFromDatabase(prevSRID.Item1,
-                                currentMapNamee, stage, prevSRID.Item2, bonusX);
-                            await upsertCommand!.ExecuteNonQueryAsync();
+                            var prevSRID = await AwaitEnabled(GetStageRecordSteamIDFromDatabase(stage, style, mode));
+                            var prevSR = await AwaitEnabled(GetPreviousPlayerStageRecordFromDatabase(prevSRID.Item1,
+                                currentMapNamee, stage, prevSRID.Item2, bonusX));
+                            RequireEnabled();
+                            await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
                             //no points until points overhaul
                             //if (globalRanksEnabled == true) await SavePlayerPoints(steamId, playerName, slot, timerTicks, dBtimerTicks, beatPB, bonusX, style);
                             //dont save stagetimes unless they complete map
-                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0) Server.NextFrame(() => _ = Task.Run(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
-                            Server.NextFrame(() =>
+                            //if ((stageTriggerCount != 0 || cpTriggerCount != 0) && bonusX == 0) NextFrameEnabled(() => _ = RunEnabled(async () => await DumpPlayerStageTimesToJson(player, steamId, slot)));
+                            NextFrameEnabled(() =>
                                 Utils.LogDebug(
                                     $"Saved player {(bonusX != 0 ? $"bonus {bonusX} stage {stage} time" : $"stage {stage} time")} to database for {playerName} {timerTicks} {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"));
                             if (enableStageTimes && enableStageSR)
-                                Server.NextFrame(() =>
+                                NextFrameEnabled(() =>
                                 {
                                     if (!IsAllowedPlayer(player)) return;
-                                    _ = Task.Run(async () => await PrintStageTimeToChat(player!,
-                                        steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR, style, mode));
+                                    _ = RunEnabled(async () => await AwaitEnabled(PrintStageTimeToChat(player!,
+                                        steamId, playerName, dBtimerTicks, timerTicks, stage, bonusX, prevSR, style, mode)));
                                 });
                         }
                     }
@@ -1734,7 +1746,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError(
                         $"Error saving player {(bonusX != 0 ? $"bonus {bonusX} time" : "time")} to database: {ex.Message}"));
             }
@@ -1760,9 +1772,9 @@ namespace SharpTimer
                 string bigGif = "x";
                 int playerPoints = 0;
 
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerStatsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
                     string? selectQuery;
                     DbCommand? selectCommand;
                     switch (dbType)
@@ -1792,7 +1804,7 @@ namespace SharpTimer
                     {
                         selectCommand!.AddParameterWithValue("@SteamID", steamId);
 
-                        var row = await selectCommand!.ExecuteReaderAsync();
+                        var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                         if (row.Read())
                         {
@@ -1814,7 +1826,7 @@ namespace SharpTimer
                                     break;
                             }
 
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
                             // Update or insert the record
 
                             string? upsertQuery;
@@ -1882,8 +1894,9 @@ namespace SharpTimer
                                     upsertCommand!.AddParameterWithValue("@BigGifID", bigGif);
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", playerPoints);
 
-                                    await upsertCommand!.ExecuteNonQueryAsync();
-                                    Server.NextFrame(() =>
+                                    RequireEnabled();
+                                    await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
+                                    NextFrameEnabled(() =>
                                         Utils.LogDebug($"Set player stats in database for {playerName}"));
                                 }
                                 else
@@ -1897,8 +1910,8 @@ namespace SharpTimer
                         }
                         else
                         {
-                            Server.NextFrame(() => Utils.LogDebug($"No player stats yet"));
-                            await row.CloseAsync();
+                            NextFrameEnabled(() => Utils.LogDebug($"No player stats yet"));
+                            await AwaitEnabled(row.CloseAsync());
 
                             string? upsertQuery;
                             DbCommand? upsertCommand;
@@ -1948,8 +1961,9 @@ namespace SharpTimer
                                     upsertCommand!.AddParameterWithValue("@BigGifID", "x");
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", 0);
 
-                                    await upsertCommand!.ExecuteNonQueryAsync();
-                                    Server.NextFrame(() =>
+                                    RequireEnabled();
+                                    await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
+                                    NextFrameEnabled(() =>
                                         Utils.LogDebug($"Set player stats in database for {playerName}"));
                                 }
                                 else
@@ -1966,7 +1980,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error setting player stats in database for {playerName}: {ex}"));
             }
         }
@@ -2002,9 +2016,9 @@ namespace SharpTimer
                     (mapname, bonusX) = FixMapAndBonus(mapname);
 
                 int playerPoints = 0;
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerStatsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
 
                     string? selectQuery;
                     DbCommand? selectCommand;
@@ -2038,16 +2052,16 @@ namespace SharpTimer
 
                         selectCommand!.AddParameterWithValue("@SteamID", steamId);
 
-                        var row = await selectCommand!.ExecuteReaderAsync();
+                        var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                         if (row.Read())
                         {
                             playerPoints = row.GetInt32("GlobalPoints");
                             
-                            int newPoints = await CalculatePlayerPoints(steamId, playerName, timerTicks, oldTicks, mode,
-                                beatPB, bonusX, style, completions, mapname) + playerPoints;
+                            int newPoints = await AwaitEnabled(CalculatePlayerPoints(steamId, playerName, timerTicks, oldTicks, mode,
+                                beatPB, bonusX, style, completions, mapname)) + playerPoints;
 
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
                             // Update or insert the record
 
                             string? upsertQuery;
@@ -2082,9 +2096,10 @@ namespace SharpTimer
                                     upsertCommand!.AddParameterWithValue("@SteamID", steamId);
                                     upsertCommand!.AddParameterWithValue("@GlobalPoints", newPoints);
 
-                                    await upsertCommand!.ExecuteNonQueryAsync();
+                                    RequireEnabled();
+                                    await AwaitEnabled(upsertCommand!.ExecuteNonQueryAsync(RuntimeToken));
                                     
-                                    Server.NextFrame(() =>
+                                    NextFrameEnabled(() =>
                                         Utils.LogDebug(
                                             $"Set points in database for {playerName} from {playerPoints} to {newPoints}"));
                                 }
@@ -2104,7 +2119,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error getting player stats from database for {playerName}: {ex}"));
             }
             return (0, 0);
@@ -2125,10 +2140,10 @@ namespace SharpTimer
 
                 // now grab sortedrecords for getting total map completes and top10
                 var sortedRecords = new Dictionary<int, PlayerRecord>();
-                sortedRecords = await GetSortedRecordsFromDatabase(0, bonusX, mapname, style, mode);
+                sortedRecords = await AwaitEnabled(GetSortedRecordsFromDatabase(0, bonusX, mapname, style, mode));
 
                 // Then calculate max points based on **map total** times finished
-                double maxPoints = await CalculateTier(sortedRecords.Count, mapname);
+                double maxPoints = await AwaitEnabled(CalculateTier(sortedRecords.Count, mapname));
 
                 int rank = 1;
                 bool isTop10 = false;
@@ -2158,8 +2173,8 @@ namespace SharpTimer
                 if (!isTop10)
                 {
                     newPoints += CalculateGroups(maxPoints,
-                        await GetPlayerMapPercentile(steamId, playerName, mapname, bonusX, style, false,
-                            timerTicks, mode), false);
+                        await AwaitEnabled(GetPlayerMapPercentile(steamId, playerName, mapname, bonusX, style, false,
+                            timerTicks, mode)), false);
                 }
 
                 // Apply style multiplier if enabled
@@ -2186,14 +2201,14 @@ namespace SharpTimer
 
                 // Zero out new points if player has exceeded max completions and has not set a pb
                 if (globalPointsMaxCompletions > 0 &&
-                    await PlayerCompletions(steamId, bonusX, style, mode) > globalPointsMaxCompletions && !beatPB)
+                    await AwaitEnabled(PlayerCompletions(steamId, bonusX, style, mode)) > globalPointsMaxCompletions && !beatPB)
                     newPoints = 0;
 
                 return (int)newPoints;
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => Utils.LogError($"Error calculating player points for {playerName}: {ex}"));
+                NextFrameEnabled(() => Utils.LogError($"Error calculating player points for {playerName}: {ex}"));
             }
 
             return 0;
@@ -2213,10 +2228,10 @@ namespace SharpTimer
                 // now grab sortedrecords for getting total map completes and top10
                 var sortedRecords = new Dictionary<int, GlobalRecord>();
 
-                sortedRecords = await GetSortedRecordsFromGlobal(GetNamedStyle(style), mode, bonusX, 0);
+                sortedRecords = await AwaitEnabled(GetSortedRecordsFromGlobal(GetNamedStyle(style), mode, bonusX, 0));
 
                 // Then calculate max points based on **map total** times finished
-                double maxPoints = await CalculateTier(sortedRecords.Count, mapCache.MapName);
+                double maxPoints = await AwaitEnabled(CalculateTier(sortedRecords.Count, mapCache.MapName));
 
                 int rank = 1;
                 bool isTop10 = false;
@@ -2246,7 +2261,7 @@ namespace SharpTimer
                 if (!isTop10)
                 {
                     newPoints += CalculateGroups(maxPoints,
-                        await GetPlayerGlobalMapPercentile(playerId, mode, GetNamedStyle(style), bonusX, time), true);
+                        await AwaitEnabled(GetPlayerGlobalMapPercentile(playerId, mode, GetNamedStyle(style), bonusX, time)), true);
                 }
 
                 // Apply mode multiplier
@@ -2262,7 +2277,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error calculating player points: {ex}"));
             }
 
@@ -2276,9 +2291,9 @@ namespace SharpTimer
                 //if ((bonusX == 0 && !playerTimers[slot].IsTimerRunning) || (bonusX != 0 && !playerTimers[slot].IsBonusTimerRunning)) return;
                 string currentMapNamee = bonusX == 0 ? currentMapName! : $"{currentMapName}_bonus{bonusX}";
 
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
 
                     string? selectQuery;
                     DbCommand? selectCommand;
@@ -2311,7 +2326,7 @@ namespace SharpTimer
                     selectCommand!.AddParameterWithValue("@Style", style);
                     selectCommand!.AddParameterWithValue("@Mode", mode);
 
-                    var row = await selectCommand!.ExecuteReaderAsync();
+                    var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                     if (row.Read())
                     {
@@ -2321,7 +2336,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error getting player completions from database for id:{steamId}: {ex}"));
             }
 
@@ -2332,7 +2347,7 @@ namespace SharpTimer
         {
             try
             {
-                using (IDbConnection connection = await OpenConnectionAsync())
+                using (IDbConnection connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
                     try
                     {
@@ -2363,9 +2378,9 @@ namespace SharpTimer
 
                         using (command)
                         {
-                            using (DbDataReader reader = await command!.ExecuteReaderAsync())
+                            using (DbDataReader reader = await AwaitEnabled(command!.ExecuteReaderAsync(RuntimeToken)))
                             {
-                                Server.NextFrame(() =>
+                                NextFrameEnabled(() =>
                                 {
                                     if (IsPlayerOrSpectator(player))
                                         Utils.PrintToChat(player, Localizer["top_10_points"]);
@@ -2373,7 +2388,7 @@ namespace SharpTimer
 
                                 int rank = 0;
 
-                                while (await reader.ReadAsync())
+                                while (await AwaitEnabled(reader.ReadAsync()))
                                 {
                                     string playerName = reader["PlayerName"].ToString()!;
                                     int points = Convert.ToInt32(reader["GlobalPoints"]);
@@ -2381,7 +2396,7 @@ namespace SharpTimer
                                     if (points >= minGlobalPointsForRank)
                                     {
                                         int currentRank = ++rank;
-                                        Server.NextFrame(() =>
+                                        NextFrameEnabled(() =>
                                         {
                                             if (IsPlayerOrSpectator(player))
                                                 Utils.PrintToChat(player,
@@ -2394,20 +2409,20 @@ namespace SharpTimer
                     }
                     catch (Exception ex)
                     {
-                        Server.NextFrame(() =>
+                        NextFrameEnabled(() =>
                             Utils.LogError($"An error occurred in PrintTop10PlayerPoints inside using con: {ex}"));
                     }
                 }
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => Utils.LogError($"An error occurred in PrintTop10PlayerPoints: {ex}"));
+                NextFrameEnabled(() => Utils.LogError($"An error occurred in PrintTop10PlayerPoints: {ex}"));
             }
         }
 
         /*public async Task GetReplayVIPGif(string steamId, int slot)
         {
-            Server.NextFrame(() => Utils.LogDebug($"Trying to get replay VIP Gif from database"));
+            NextFrameEnabled(() => Utils.LogDebug($"Trying to get replay VIP Gif from database"));
             try
             {
                 using (var connection = await OpenConnectionAsync())
@@ -2460,13 +2475,13 @@ namespace SharpTimer
 
                             if (isVip)
                             {
-                                Server.NextFrame(() => Utils.LogDebug($"Replay is VIP setting gif..."));
+                                NextFrameEnabled(() => Utils.LogDebug($"Replay is VIP setting gif..."));
                                 value.VipReplayGif =
                                     $"<br><img src='https://files.catbox.moe/{row.GetString("BigGifID")}.gif'><br>";
                             }
                             else
                             {
-                                Server.NextFrame(() => Utils.LogDebug($"Replay is not VIP..."));
+                                NextFrameEnabled(() => Utils.LogDebug($"Replay is not VIP..."));
                                 value.VipReplayGif = "x";
                             }
 
@@ -2475,14 +2490,14 @@ namespace SharpTimer
                         else
                         {
                             await row.CloseAsync();
-                            Server.NextFrame(() => Utils.LogDebug($"Replay is not VIP... goofy"));
+                            NextFrameEnabled(() => Utils.LogDebug($"Replay is not VIP... goofy"));
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => Utils.LogError($"Error getting ReplayVIPGif from database: {ex}"));
+                NextFrameEnabled(() => Utils.LogError($"Error getting ReplayVIPGif from database: {ex}"));
             }
         }*/
 
@@ -2492,9 +2507,9 @@ namespace SharpTimer
             Utils.LogDebug($"Trying to get {(bonusX != 0 ? $"bonus {bonusX}" : "map")} record steamid from database");
             try
             {
-                using (IDbConnection connection = await OpenConnectionAsync())
+                using (IDbConnection connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
                     string? selectQuery;
                     DbCommand? selectCommand;
                     if (top10 != 0)
@@ -2574,7 +2589,7 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@Style", style);
                         selectCommand!.AddParameterWithValue("@Mode", mode);
 
-                        var row = await selectCommand!.ExecuteReaderAsync();
+                        var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                         if (row.Read())
                         {
@@ -2583,13 +2598,13 @@ namespace SharpTimer
                             int timerTicks = row.GetInt32("TimerTicks");
 
 
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
 
                             return (steamId64, playerName, timerTicks);
                         }
                         else
                         {
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
 
                             return ("null", "null", 0);
                         }
@@ -2598,7 +2613,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error getting GetMapRecordSteamIDFromDatabase from database: {ex}"));
                 return ("null", "null", 0);
             }
@@ -2610,7 +2625,7 @@ namespace SharpTimer
                 $"Trying to get {(bonusX != 0 ? $"bonus {bonusX} stage {stage}" : $"stage {stage}")} record steamid from database");
             try
             {
-                using (IDbConnection connection = await OpenConnectionAsync())
+                using (IDbConnection connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
                     string? selectQuery;
                     DbCommand? selectCommand;
@@ -2695,7 +2710,7 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@Mode", mode);
                         selectCommand!.AddParameterWithValue("@Style", style);
 
-                        var row = await selectCommand!.ExecuteReaderAsync();
+                        var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                         if (row.Read())
                         {
@@ -2703,13 +2718,13 @@ namespace SharpTimer
                             string playerName = row.GetString("PlayerName");
                             string timerTicks = Utils.FormatTime(row.GetInt32("TimerTicks"));
 
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
 
                             return (steamId64, playerName, timerTicks);
                         }
                         else
                         {
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
 
                             return ("null", "null", "null");
                         }
@@ -2718,7 +2733,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                     Utils.LogError($"Error getting GetStageRecordSteamIDFromDatabase from database: {ex}"));
                 return ("null", "null", "null");
             }
@@ -2730,7 +2745,7 @@ namespace SharpTimer
                 $"Trying to get {(bonusX != 0 ? $"bonus {bonusX} stage {stage}" : $"stage {stage}")} record steamid from database");
             try
             {
-                using (IDbConnection connection = await OpenConnectionAsync())
+                using (IDbConnection connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
                     string? selectQuery;
                     DbCommand? selectCommand;
@@ -2790,7 +2805,7 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@Mode", mode);
                         selectCommand!.AddParameterWithValue("@Style", style);
 
-                        var row = await selectCommand!.ExecuteReaderAsync();
+                        var row = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken));
 
                         if (row.Read())
                         {
@@ -2798,13 +2813,13 @@ namespace SharpTimer
                             string stageSpeed = row.GetString("Velocity");
 
 
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
 
                             return (stageTime, stageSpeed);
                         }
                         else
                         {
-                            await row.CloseAsync();
+                            await AwaitEnabled(row.CloseAsync());
 
                             return (0, "null");
                         }
@@ -2813,7 +2828,7 @@ namespace SharpTimer
             }
             catch (Exception ex)
             {
-                Server.NextFrame(() => Utils.LogError($"Error getting GetStageRecord from database: {ex}"));
+                NextFrameEnabled(() => Utils.LogError($"Error getting GetStageRecord from database: {ex}"));
                 return (0, "null");
             }
         }
@@ -2827,9 +2842,9 @@ namespace SharpTimer
             {
                 string currentMapNamee = bonusX == 0 ? currentMapName : $"{currentMapName}_bonus{bonusX}";
 
-                using (IDbConnection connection = await OpenConnectionAsync())
+                using (IDbConnection connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
                     string? selectQuery;
                     DbCommand? selectCommand;
 
@@ -2864,7 +2879,7 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@Style", style);
                         selectCommand!.AddParameterWithValue("@Mode", mode);
 
-                        var result = await selectCommand!.ExecuteScalarAsync();
+                        var result = await AwaitEnabled(selectCommand!.ExecuteScalarAsync(RuntimeToken));
 
                         // Check for DBNull
                         if (result != null && result != DBNull.Value)
@@ -2893,7 +2908,7 @@ namespace SharpTimer
             {
                 string currentMapNamee = bonusX == 0 ? currentMapName : $"{currentMapName}_bonus{bonusX}";
 
-                using (IDbConnection connection = await OpenConnectionAsync())
+                using (IDbConnection connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
                     string? selectQuery;
                     DbCommand? selectCommand;
@@ -2928,7 +2943,7 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@SteamID", steamId);
                         selectCommand!.AddParameterWithValue("@Stage", stage);
 
-                        var result = await selectCommand!.ExecuteScalarAsync();
+                        var result = await AwaitEnabled(selectCommand!.ExecuteScalarAsync(RuntimeToken));
 
                         // Check for DBNull
                         if (result != null && result != DBNull.Value)
@@ -2955,9 +2970,9 @@ namespace SharpTimer
 
             try
             {
-                using (var connection = await OpenConnectionAsync())
+                using (var connection = await AwaitEnabled(OpenConnectionAsync()))
                 {
-                    await CreatePlayerStatsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
                     string? selectQuery;
                     DbCommand? selectCommand;
                     switch (dbType)
@@ -2985,7 +3000,7 @@ namespace SharpTimer
                     {
                         selectCommand!.AddParameterWithValue("@SteamID", steamId);
 
-                        var result = await selectCommand!.ExecuteScalarAsync();
+                        var result = await AwaitEnabled(selectCommand!.ExecuteScalarAsync(RuntimeToken));
 
                         // Check for DBNull
                         if (result != null && result != DBNull.Value)
@@ -3009,7 +3024,7 @@ namespace SharpTimer
             string mapName = "", int style = 0, string mode = "")
         {
             Utils.LogDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
@@ -3019,7 +3034,7 @@ namespace SharpTimer
                     else
                         currentMapNamee = mapName;
 
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
 
                     // Retrieve and sort records for the current map
                     string? selectQuery;
@@ -3080,11 +3095,11 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@MapName", currentMapNamee);
                         selectCommand!.AddParameterWithValue("@Style", style);
                         selectCommand!.AddParameterWithValue("@Mode", mode);
-                        using (var reader = await selectCommand!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken)))
                         {
                             var sortedRecords = new Dictionary<int, PlayerRecord>();
                             int record = 0;
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 string steamId = reader.GetString(0);
                                 string playerName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
@@ -3122,7 +3137,7 @@ namespace SharpTimer
             string mapName = "", int style = 0, string mode = "", string type = "")
         {
             Utils.LogDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
@@ -3132,7 +3147,7 @@ namespace SharpTimer
                     else
                         currentMapNamee = mapName;
 
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
 
                     // Retrieve and sort records for the current map
                     string? selectQuery;
@@ -3193,11 +3208,11 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@MapName", currentMapNamee);
                         selectCommand!.AddParameterWithValue("@Style", style);
                         selectCommand!.AddParameterWithValue("@Mode", mode);
-                        using (var reader = await selectCommand!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken)))
                         {
                             var sortedRecords = new Dictionary<int, PlayerRecord>();
                             int record = 0;
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 string steamId = reader.GetString(0);
                                 string playerName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
@@ -3242,7 +3257,7 @@ namespace SharpTimer
 
         public async Task<Dictionary<int, PlayerPoints>> GetTopPointsFromDatabase(int limit = 0)
         {
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
@@ -3304,11 +3319,11 @@ namespace SharpTimer
                     using (selectCommand)
                     {
                         selectCommand!.AddParameterWithValue("@limit", limit);
-                        using (var reader = await selectCommand!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken)))
                         {
                             var sortedPoints = new Dictionary<int, PlayerPoints>();
                             int playerNum = 0;
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 string steamId = reader.GetString(0);
                                 string playerName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
@@ -3340,11 +3355,11 @@ namespace SharpTimer
             int style = 0, string mode = "")
         {
             Utils.LogDebug($"Trying GetSortedRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
 
                     // Retrieve and sort records for the current map
                     string? selectQuery;
@@ -3404,11 +3419,11 @@ namespace SharpTimer
                     {
                         selectCommand!.AddParameterWithValue("@Style", style);
                         selectCommand!.AddParameterWithValue("@Mode", mode);
-                        using (var reader = await selectCommand!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken)))
                         {
                             Dictionary<string, List<PlayerRecord>> sortedRecords =
                                 new Dictionary<string, List<PlayerRecord>>();
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 string steamId = reader.GetString(0);
                                 string playerName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
@@ -3454,7 +3469,7 @@ namespace SharpTimer
             int bonusX = 0, string mapName = "", int style = 0, string mode = "")
         {
             Utils.LogDebug($"Trying GetSortedStageRecords {(bonusX != 0 ? $"bonus {bonusX}" : "")} from database");
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
@@ -3464,7 +3479,7 @@ namespace SharpTimer
                     else
                         currentMapNamee = mapName;
 
-                    await CreatePlayerRecordsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerRecordsTableAsync(connection));
 
                     // Retrieve and sort records for the current map
                     string? selectQuery;
@@ -3526,10 +3541,10 @@ namespace SharpTimer
                         selectCommand!.AddParameterWithValue("@Stage", stage);
                         selectCommand!.AddParameterWithValue("@Style", style);
                         selectCommand!.AddParameterWithValue("@Mode", mode);
-                        using (var reader = await selectCommand!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken)))
                         {
                             var sortedRecords = new Dictionary<string, PlayerRecord>();
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 string steamId = reader.GetString(0);
                                 string playerName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
@@ -3564,11 +3579,11 @@ namespace SharpTimer
         public async Task<Dictionary<string, PlayerPoints>> GetSortedPointsFromDatabase()
         {
             Utils.LogDebug("Trying GetSortedPoints from database");
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
-                    await CreatePlayerStatsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
                     string? selectQuery;
                     DbCommand? selectCommand;
                     switch (dbType)
@@ -3594,10 +3609,10 @@ namespace SharpTimer
 
                     using (selectCommand)
                     {
-                        using (var reader = await selectCommand!.ExecuteReaderAsync())
+                        using (var reader = await AwaitEnabled(selectCommand!.ExecuteReaderAsync(RuntimeToken)))
                         {
                             var sortedPoints = new Dictionary<string, PlayerPoints>();
-                            while (await reader.ReadAsync())
+                            while (await AwaitEnabled(reader.ReadAsync()))
                             {
                                 string steamId = reader.GetString(0);
                                 string playerName = reader.IsDBNull(1) ? "Unknown" : reader.GetString(1);
@@ -3636,15 +3651,16 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
         public void ImportPlayerPointsCommand(CCSPlayerController? player, CommandInfo command)
         {
-            _ = Task.Run(ImportPlayerPoints);
+            if (!IsEnabled) return;
+            _ = RunEnabled(ImportPlayerPoints);
         }
 
         public async Task ImportPlayerPoints()
         {
             try
             {
-                Server.NextFrame(() => Utils.PrintToChatAll("Points import initialized"));
-                var sortedRecords = await GetAllSortedRecordsFromDatabase(0, 0, 0, GetModeName(defaultMode));
+                NextFrameEnabled(() => Utils.PrintToChatAll("Points import initialized"));
+                var sortedRecords = await AwaitEnabled(GetAllSortedRecordsFromDatabase(0, 0, 0, GetModeName(defaultMode)));
 
                 int batchSize = 10;
                 for (int i = 0; i < sortedRecords.Count; i += batchSize)
@@ -3653,10 +3669,10 @@ namespace SharpTimer
                     var tasks = batch.Select(record => SavePlayerPoints(record.SteamID!, record.PlayerName!, -1,
                         record.TimerTicks, 0, GetModeName(defaultMode), false, 0, 0, 0, record.MapName!, true));
 
-                    await Task.WhenAll(tasks);
+                    await AwaitEnabled(Task.WhenAll(tasks));
                 }
 
-                Server.NextFrame(() => Utils.PrintToChatAll("Points import completed"));
+                NextFrameEnabled(() => Utils.PrintToChatAll("Points import completed"));
             }
             catch (Exception ex)
             {
@@ -3669,16 +3685,17 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
         public void ResetPlayerPointsCommand(CCSPlayerController? player, CommandInfo command)
         {
-            _ = Task.Run(ResetPlayerPoints);
+            if (!IsEnabled) return;
+            _ = RunEnabled(ResetPlayerPoints);
         }
 
         public async Task ResetPlayerPoints()
         {
-            using (var connection = await OpenConnectionAsync())
+            using (var connection = await AwaitEnabled(OpenConnectionAsync()))
             {
                 try
                 {
-                    await CreatePlayerStatsTableAsync(connection);
+                    await AwaitEnabled(CreatePlayerStatsTableAsync(connection));
                     string? updateQuery;
                     DbCommand? updateCommand;
                     switch (dbType)
@@ -3703,7 +3720,8 @@ namespace SharpTimer
 
                     using (updateCommand)
                     {
-                        await updateCommand!.ExecuteNonQueryAsync();
+                        RequireEnabled();
+                        await AwaitEnabled(updateCommand!.ExecuteNonQueryAsync(RuntimeToken));
                     }
                 }
                 catch (Exception ex)
@@ -3718,7 +3736,8 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
         public void AddJsonTimesToDatabaseCommand(CCSPlayerController? player, CommandInfo command)
         {
-            _ = Task.Run(AddJsonTimesToDatabaseAsync);
+            if (!IsEnabled) return;
+            _ = RunEnabled(AddJsonTimesToDatabaseAsync);
         }
 
         public async Task AddJsonTimesToDatabaseAsync()
@@ -3734,7 +3753,7 @@ namespace SharpTimer
                     return;
                 }
 
-                string connectionString = await GetConnectionStringFromConfigFile();
+                string connectionString = await AwaitEnabled(GetConnectionStringFromConfigFile());
                 IDbConnection? connection = null;
                 switch (dbType)
                 {
@@ -3757,11 +3776,11 @@ namespace SharpTimer
                     connection.Open();
 
                     // Check if the table exists, and create it if necessary
-                    await CheckTablesAsync();
+                    await AwaitEnabled(CheckTablesAsync());
 
                     foreach (var filePath in Directory.EnumerateFiles(playerRecordsPathh, "*.json"))
                     {
-                        string json = await File.ReadAllTextAsync(filePath);
+                        string json = await AwaitEnabled(File.ReadAllTextAsync(filePath));
                         var records = JsonSerializer.Deserialize<Dictionary<string, PlayerRecord>>(json);
 
                         if (records == null)
@@ -3832,7 +3851,8 @@ namespace SharpTimer
                                 insertOrUpdateCommand!.AddParameterWithValue("@Style", 0);
                                 insertOrUpdateCommand!.AddParameterWithValue("@Mode", "Standard");
 
-                                await insertOrUpdateCommand!.ExecuteNonQueryAsync();
+                                RequireEnabled();
+                                await AwaitEnabled(insertOrUpdateCommand!.ExecuteNonQueryAsync(RuntimeToken));
                             }
                         }
 

@@ -28,7 +28,7 @@ namespace SharpTimer
     public partial class SharpTimer
     {
         public override string ModuleName => "SharpTimer";
-        public override string ModuleVersion => $"0.4.2";
+        public override string ModuleVersion => $"0.4.11";
         public override string ModuleAuthor => "ST Community";
 
         public static SharpTimer Instance = new();
@@ -134,6 +134,7 @@ namespace SharpTimer
 
         public bool isLinux = true;
         public bool enableDebug = true;
+        public bool giveDefaultWeapons = false;
         public bool killServerCommands = true;
         public bool useMySQL = false;
         public bool usePostgres = false;

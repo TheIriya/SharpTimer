@@ -33,6 +33,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void DeepPrintPlayerTimers(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             Utils.ConPrint("Printing Player Timers:");
             foreach (var kvp in playerTimers)
             {
@@ -68,6 +69,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplaySelfCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -83,7 +85,7 @@ namespace SharpTimer
             if (ReplayCheck(player))
                 return;
 
-            _ = Task.Run(async () => await ReplayHandler(player, slot, "self", steamID, playerName, 0, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, "self", steamID, playerName, 0, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode)));
         }
 
         [ConsoleCommand("css_replay", "Replay server map record")]
@@ -91,6 +93,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplaySRCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -106,13 +109,14 @@ namespace SharpTimer
 
             Utils.PrintToChat(player, Localizer["available_replay_cmds"]);
 
-            _ = Task.Run(async () => await ReplayHandler(player, slot, "1", "69", "unknown", 0, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, "1", "69", "unknown", 0, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode)));
         }
 
         [ConsoleCommand("css_replaytop", "Replay a top 10 server map record")]
         [CommandHelper(minArgs: 1, usage: "[1-10]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplayTop10SRCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -128,13 +132,14 @@ namespace SharpTimer
 
             string arg = command.ArgByIndex(1);
 
-            _ = Task.Run(async () => await ReplayHandler(player, slot, arg, "69", "unknown", 0, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, arg, "69", "unknown", 0, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode)));
         }
 
         [ConsoleCommand("css_replaywr", "Replay the current map/mode world record")]
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplayTop10WRCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -150,14 +155,14 @@ namespace SharpTimer
 
             if (command.ArgCount == 0)
             {
-                _ = Task.Run(async () => await ReplayHandler(player, slot, "1", "69", "unknown", 0,
-                    playerTimers[slot].currentStyle, true, playerTimers[slot].Mode));
+                _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, "1", "69", "unknown", 0,
+                    playerTimers[slot].currentStyle, true, playerTimers[slot].Mode)));
                 return;
             }
 
             string arg = command.ArgByIndex(1);
 
-            _ = Task.Run(async () => await ReplayHandler(player, slot, arg, "69", "unknown", 0, playerTimers[slot].currentStyle, true, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, arg, "69", "unknown", 0, playerTimers[slot].currentStyle, true, playerTimers[slot].Mode)));
         }
 
         [ConsoleCommand("css_replaywrb", "Replay the current bonus map/mode world record")]
@@ -165,6 +170,7 @@ namespace SharpTimer
         [CommandHelper(minArgs: 1, usage: "[1-10] [bonus stage]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplayTop10WRBCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -181,17 +187,18 @@ namespace SharpTimer
             string arg = command.ArgByIndex(1);
             string arg2 = command.ArgByIndex(2);
             
-            _ = Task.Run(async () => await ReplayHandler(player, slot, arg, "69", "unknown", Int16.Parse(arg2), playerTimers[slot].currentStyle, true, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, arg, "69", "unknown", Int16.Parse(arg2), playerTimers[slot].currentStyle, true, playerTimers[slot].Mode)));
         }
 
         [ConsoleCommand("css_gc", "Globalcheck")]
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
         public void GlobalCheckCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (player == null || !IsAllowedPlayer(player))
                 return;
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 Utils.PrintToChat(player,
                     $"API Key: {(validKey ? $"{ChatColors.Green}✓{ChatColors.Default}" : $"{ChatColors.DarkRed}✗{ChatColors.Default}")}"
@@ -222,8 +229,9 @@ namespace SharpTimer
         [RequiresPermissions("@css/cheats")]
         public void GetHashCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             var hash = GetHash();
-            Server.NextFrame(() => command.ReplyToCommand($"ST HASH: {hash}"));
+            NextFrameEnabled(() => command.ReplyToCommand($"ST HASH: {hash}"));
         }
 
         [ConsoleCommand("css_replayb", "Replay a top 10 server bonus record")]
@@ -231,6 +239,7 @@ namespace SharpTimer
         [CommandHelper(minArgs: 1, usage: "[1-10] [bonus stage]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplayBonusCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -247,7 +256,7 @@ namespace SharpTimer
             string arg = command.ArgByIndex(1);
             string arg2 = command.ArgByIndex(2);
 
-            _ = Task.Run(async () => await ReplayHandler(player, slot, arg, "69", "unknown", Int16.Parse(arg2), playerTimers[slot].currentStyle, false, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, arg, "69", "unknown", Int16.Parse(arg2), playerTimers[slot].currentStyle, false, playerTimers[slot].Mode)));
         }
 
         [ConsoleCommand("css_replaybpb", "Replay your bonus pb")]
@@ -255,6 +264,7 @@ namespace SharpTimer
         [CommandHelper(minArgs: 1, usage: "[bonus stage]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ReplayBonusPBCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -273,7 +283,7 @@ namespace SharpTimer
             string arg = command.ArgByIndex(1);
             int bonusX = Int16.Parse(arg);
 
-            _ = Task.Run(async () => await ReplayHandler(player, slot, "self", steamID, playerName, bonusX, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(ReplayHandler(player, slot, "self", steamID, playerName, bonusX, playerTimers[slot].currentStyle, false, playerTimers[slot].Mode)));
         }
 
         public async Task ReplayHandler(CCSPlayerController player, int slot, string arg = "1", string pbSteamID = "69", string playerName = "unknown", int bonusX = 0, int style = 0, bool wr = false, string mode = "")
@@ -298,13 +308,13 @@ namespace SharpTimer
             if (!self)
             {
                 if (enableDb)
-                    (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamIDFromDatabase(bonusX, top10, style, mode);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetMapRecordSteamIDFromDatabase(bonusX, top10, style, mode));
                 else
-                    (srSteamID, srPlayerName, srTime) = await GetMapRecordSteamID(bonusX, top10);
+                    (srSteamID, srPlayerName, srTime) = await AwaitEnabled(GetMapRecordSteamID(bonusX, top10));
 
                 if (wr)
                 {
-                    var sortedRecords = await GetSortedRecordsFromGlobal(GetNamedStyle(style), mode, bonusX, 10);
+                    var sortedRecords = await AwaitEnabled(GetSortedRecordsFromGlobal(GetNamedStyle(style), mode, bonusX, 10));
                     wrID = sortedRecords[top10-1].record_id;
                     wrPlayerName = sortedRecords[top10-1].player_name;
                     wrTime = Utils.FormatDecimalTime(sortedRecords[top10-1].time);
@@ -313,7 +323,7 @@ namespace SharpTimer
 
             if ((srSteamID == "null" || srPlayerName == "null" || srTime == 0) && !self)
             {
-                Server.NextFrame(() => {
+                NextFrameEnabled(() => {
                     Utils.PrintToChat(player, Localizer["no_sr_replay"]);
                     RespawnPlayer(player);
                 });
@@ -321,20 +331,20 @@ namespace SharpTimer
             }
 
             if (wr)
-                await ReadReplayFromGlobal(player, wrID, mode, bonusX);
+                await AwaitEnabled(ReadReplayFromGlobal(player, wrID, mode, bonusX));
             else
             {
                 if (useBinaryReplays)
-                    await ReadReplayFromBinary(player, !self ? srSteamID : pbSteamID, slot, bonusX, style, mode);
+                    await AwaitEnabled(ReadReplayFromBinary(player, !self ? srSteamID : pbSteamID, slot, bonusX, style, mode));
                 else
-                    await ReadReplayFromJson(player, !self ? srSteamID : pbSteamID, slot, bonusX, style, mode);
+                    await AwaitEnabled(ReadReplayFromJson(player, !self ? srSteamID : pbSteamID, slot, bonusX, style, mode));
             }
             
             if (playerReplays[slot].replayFrames.Count == 0) return;
 
             //if (!wr) await GetReplayVIPGif(!self ? srSteamID : pbSteamID, slot);
 
-            playerTimers[slot].IsReplaying = !playerTimers[slot].IsReplaying;
+            playerTimers[slot].IsReplaying = true;
 
             if (wr)
                 playerTimers[slot].ReplayHUDString = $"{wrPlayerName} | {wrTime}";
@@ -350,7 +360,7 @@ namespace SharpTimer
             if (stageTriggers.Count != 0) playerTimers[slot].StageTimes!.Clear(); //remove previous stage times if the map has stages
             if (stageTriggers.Count != 0) playerTimers[slot].StageVelos!.Clear(); //remove previous stage velo if the map has stages
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 if (!IsAllowedPlayer(player))
                 {
@@ -372,6 +382,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void StopReplayCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || enableReplays == false)
                 return;
 
@@ -392,6 +403,7 @@ namespace SharpTimer
             {
                 Utils.PrintToChat(player, Localizer["ending_replay"]);
                 playerTimers[slot].IsReplaying = false;
+                ResetReplayPosture(player);
 
                 if (player.PlayerPawn.Value!.MoveType != MoveType_t.MOVETYPE_WALK || player.PlayerPawn.Value.ActualMoveType != MoveType_t.MOVETYPE_WALK) SetMoveType(player, MoveType_t.MOVETYPE_WALK);
                     playerReplays.Remove(slot);
@@ -416,6 +428,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void HelpCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player) || !helpEnabled)
                 return;
 
@@ -427,6 +440,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void SpecCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player))
                 return;
 
@@ -448,6 +462,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void TIMESwitchCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
 
@@ -469,7 +484,7 @@ namespace SharpTimer
             if (enableDb)
             {
                 bool playerValid = IsAllowedPlayer(player);
-                _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+                _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
             }
 
             Utils.LogDebug($"Hide Chat Speed set to: {playerTimers[slot].HideChatSpeed} for {playerName}");
@@ -479,6 +494,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void HUDSwitchCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
 
@@ -503,7 +519,7 @@ namespace SharpTimer
             if (enableDb)
             {
                 bool playerValid = IsAllowedPlayer(player);
-                _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+                _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
             }
         }
 
@@ -511,6 +527,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void KeysSwitchCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
 
@@ -535,7 +552,7 @@ namespace SharpTimer
             if (enableDb)
             {
                 bool playerValid = IsAllowedPlayer(player);
-                _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+                _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
             }
         }
 
@@ -543,6 +560,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void SoundsSwitchCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
 
@@ -567,7 +585,7 @@ namespace SharpTimer
             if (enableDb)
             {
                 bool playerValid = IsAllowedPlayer(player);
-                _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+                _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
             }
         }
 
@@ -576,6 +594,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ToggleWeaponCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
 
@@ -585,13 +604,14 @@ namespace SharpTimer
 
             playerTimers[slot].HideWeapon = !playerTimers[slot].HideWeapon;
             bool playerValid = IsAllowedPlayer(player);
-            _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+            _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
         }
 
         [ConsoleCommand("css_fov", "Sets the player's FOV")]
         [CommandHelper(minArgs: 1, usage: "[fov]")]
         public void FovCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || fovChangerEnabled == false)
                 return;
 
@@ -613,7 +633,7 @@ namespace SharpTimer
             if (enableDb)
             {
                 bool playerValid = IsAllowedPlayer(player);
-                _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+                _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
             }
         }
 
@@ -623,6 +643,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void PrintTopRecords(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player) || topEnabled == false)
                 return;
 
@@ -633,13 +654,13 @@ namespace SharpTimer
 
             var mapName = command.ArgByIndex(1);
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 bool playerValid = IsPlayerOrSpectator(player);
                 var playerName = player.PlayerName;
                 var style = playerTimers[player.Slot].currentStyle;
                 var mode = playerTimers[player.Slot].Mode;
-                _ = Task.Run(async () => await PrintTopRecordsHandler(player, playerName, playerValid, 0, string.IsNullOrEmpty(mapName) ? "" : mapName, style, mode));
+                _ = RunEnabled(async () => await AwaitEnabled(PrintTopRecordsHandler(player, playerName, playerValid, 0, string.IsNullOrEmpty(mapName) ? "" : mapName, style, mode)));
             });
         }
 
@@ -648,6 +669,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void PrintTopPoints(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player) || globalRanksEnabled == false)
                 return;
 
@@ -656,13 +678,14 @@ namespace SharpTimer
             if (CommandCooldown(player))
                 return;
 
-            _ = Task.Run(async () => await PrintTop10PlayerPoints(player));
+            _ = RunEnabled(async () => await AwaitEnabled(PrintTop10PlayerPoints(player)));
         }
 
         [ConsoleCommand("css_wr", "Prints world record for current map")]
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void PrintWR(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
 
@@ -678,6 +701,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void PrintTopGlobalPoints(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
             
@@ -696,6 +720,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void PrintPlayerGlobalPoints(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player))
                 return;
             
@@ -707,7 +732,7 @@ namespace SharpTimer
             if (CommandCooldown(player)) return;
 
             int slot = player.Slot;
-            _ = Task.Run(async () => await PrintGlobalRankAsync(player, slot));
+            _ = RunEnabled(async () => await AwaitEnabled(PrintGlobalRankAsync(player, slot)));
         }
 
         [ConsoleCommand("css_topbonus", "Prints top players of this map bonus")]
@@ -715,6 +740,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void PrintTopBonusRecords(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player) || topEnabled == false)
                 return;
 
@@ -731,13 +757,13 @@ namespace SharpTimer
                 return;
             }
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 bool playerValid = IsPlayerOrSpectator(player);
                 var playerName = player.PlayerName;
                 var style = playerTimers[player.Slot].currentStyle;
                 var mode = playerTimers[player.Slot].Mode;
-                _ = Task.Run(async () => await PrintTopRecordsHandler(player, playerName, playerValid, bonusX, "", style, mode));
+                _ = RunEnabled(async () => await AwaitEnabled(PrintTopRecordsHandler(player, playerName, playerValid, bonusX, "", style, mode)));
             });
         }
 
@@ -754,7 +780,7 @@ namespace SharpTimer
             else
                 currentMapNamee = mapName;
 
-            var sortedRecords = await GetSortedRecordsFromDatabase(10, bonusX, currentMapNamee, style, mode);
+            var sortedRecords = await AwaitEnabled(GetSortedRecordsFromDatabase(10, bonusX, currentMapNamee, style, mode));
 
             // Grab replay flags now so the render below doesn't block on .Result
             var replayAvailability = new Dictionary<string, bool>();
@@ -764,11 +790,11 @@ namespace SharpTimer
                 {
                     var recSteamID = kvp.Value.SteamID!;
                     if (!replayAvailability.ContainsKey(recSteamID))
-                        replayAvailability[recSteamID] = await CheckSRReplay(recSteamID, bonusX, 0, mode);
+                        replayAvailability[recSteamID] = await AwaitEnabled(CheckSRReplay(recSteamID, bonusX, 0, mode));
                 }
             }
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 if (!IsPlayerOrSpectator(player))
                     return;
@@ -815,6 +841,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void RankCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player) || rankEnabled == false)
                 return;
 
@@ -827,7 +854,7 @@ namespace SharpTimer
             if (CommandCooldown(player))
                 return;
 
-            _ = Task.Run(async () => await RankCommandHandler(player, steamID, slot, playerName, false, playerTimers[slot].currentStyle, playerTimers[slot].Mode));
+            _ = RunEnabled(async () => await AwaitEnabled(RankCommandHandler(player, steamID, slot, playerName, false, playerTimers[slot].currentStyle, playerTimers[slot].Mode)));
         }
 
         public async Task RankCommandHandler(CCSPlayerController? player, string steamId, int slot, string playerName, bool sendRankToHUD = false, int style = 0, string mode = "")
@@ -842,21 +869,21 @@ namespace SharpTimer
                 string ranking, rankIcon, mapPlacement, serverPoints = "", serverPlacement = "";
                 bool useGlobalRanks = enableDb && globalRanksEnabled;
 
-                ranking = useGlobalRanks ? await GetPlayerServerPlacement(steamId, playerName) : await GetPlayerMapPlacementWithTotal(steamId, playerName, false, false, 0, style, false, mode);
-                rankIcon = useGlobalRanks ? await GetPlayerServerPlacement(steamId, playerName, true) : await GetPlayerMapPlacementWithTotal(steamId, playerName, true, false, 0, style, false, mode);
-                mapPlacement = await GetPlayerMapPlacementWithTotal(steamId, playerName, false, true, 0, style, false, mode);
+                ranking = useGlobalRanks ? await AwaitEnabled(GetPlayerServerPlacement(steamId, playerName)) : await AwaitEnabled(GetPlayerMapPlacementWithTotal(steamId, playerName, false, false, 0, style, false, mode));
+                rankIcon = useGlobalRanks ? await AwaitEnabled(GetPlayerServerPlacement(steamId, playerName, true)) : await AwaitEnabled(GetPlayerMapPlacementWithTotal(steamId, playerName, true, false, 0, style, false, mode));
+                mapPlacement = await AwaitEnabled(GetPlayerMapPlacementWithTotal(steamId, playerName, false, true, 0, style, false, mode));
 
                 // Build bonus cache off-thread into a local map, publish to playerTimers on the main thread below
                 var cachedBonusInfo = new Dictionary<int, PlayerBonusPlacementInfo>();
                 foreach (var bonusRespawnPose in bonusRespawnPoses)
                 {
                     var bonusNumber = bonusRespawnPose.Key;
-                    var bonusPbTicks = enableDb ? await GetPreviousPlayerRecordFromDatabase(steamId, currentMapName!, playerName, bonusNumber, style, mode) : await GetPreviousPlayerRecord(steamId, bonusNumber);
+                    var bonusPbTicks = enableDb ? await AwaitEnabled(GetPreviousPlayerRecordFromDatabase(steamId, currentMapName!, playerName, bonusNumber, style, mode)) : await AwaitEnabled(GetPreviousPlayerRecord(steamId, bonusNumber));
 
                     /// Skip this bonus since the player doesn't have a saved time
                     if (bonusPbTicks <= 0) continue;
 
-                    var bonusPlacement = await GetPlayerMapPlacementWithTotal(steamId, playerName, false, true, bonusNumber, style, false, mode);
+                    var bonusPlacement = await AwaitEnabled(GetPlayerMapPlacementWithTotal(steamId, playerName, false, true, bonusNumber, style, false, mode));
 
                     Utils.LogDebug($"Adding bonus info for Bonus {bonusNumber}");
                     Utils.LogDebug($"PbTicks: {bonusPbTicks}");
@@ -871,13 +898,13 @@ namespace SharpTimer
 
                 if (useGlobalRanks)
                 {
-                    serverPoints = await GetPlayerServerPlacement(steamId, playerName, false, false, true);
-                    serverPlacement = await GetPlayerServerPlacement(steamId, playerName, false, true, false);
+                    serverPoints = await AwaitEnabled(GetPlayerServerPlacement(steamId, playerName, false, false, true));
+                    serverPlacement = await AwaitEnabled(GetPlayerServerPlacement(steamId, playerName, false, true, false));
                 }
 
-                int pbTicks = enableDb ? await GetPreviousPlayerRecordFromDatabase(steamId, currentMapName!, playerName, 0, style, mode) : await GetPreviousPlayerRecord(steamId, 0);
+                int pbTicks = enableDb ? await AwaitEnabled(GetPreviousPlayerRecordFromDatabase(steamId, currentMapName!, playerName, 0, style, mode)) : await AwaitEnabled(GetPreviousPlayerRecord(steamId, 0));
 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     if (!IsPlayerOrSpectator(player)) return;
                     playerTimers[slot].RankHUDIcon = $"{(!string.IsNullOrEmpty(rankIcon) ? $" {rankIcon}" : "")}";
@@ -893,7 +920,7 @@ namespace SharpTimer
 
                 if (!sendRankToHUD)
                 {
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         if (!IsPlayerOrSpectator(player))
                             return;
@@ -926,6 +953,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void SRCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsPlayerOrSpectator(player) || rankEnabled == false)
                 return;
 
@@ -936,7 +964,7 @@ namespace SharpTimer
             if (CommandCooldown(player))
                 return;
 
-            _ = Task.Run(async () => await SRCommandHandler(player, playerName));
+            _ = RunEnabled(async () => await AwaitEnabled(SRCommandHandler(player, playerName)));
         }
 
         public async Task SRCommandHandler(CCSPlayerController? player, string _playerName)
@@ -946,12 +974,12 @@ namespace SharpTimer
 
             Utils.LogDebug($"Handling !sr for {_playerName}...");
             
-            var sortedRecords = await GetSortedRecordsFromDatabase();
+            var sortedRecords = await AwaitEnabled(GetSortedRecordsFromDatabase());
 
             if (sortedRecords.Count == 0)
                 return;
 
-            Server.NextFrame(() =>
+            NextFrameEnabled(() =>
             {
                 if (!IsPlayerOrSpectator(player)) return;
                 Utils.PrintToChat(player!, Localizer["current_sr", currentMapName!]);
@@ -961,7 +989,7 @@ namespace SharpTimer
             {
                 string playerName = kvp.Value.PlayerName!;
                 int timerTicks = kvp.Value.TimerTicks;
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     if (!IsPlayerOrSpectator(player)) return;
                     Utils.PrintToChat(player!, Localizer["current_sr_player", playerName!, Utils.FormatTime(timerTicks)]);
@@ -974,6 +1002,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void RespawnBonusPlayer(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             try
             {
                 if (!IsAllowedPlayer(player) || respawnEnabled == false)
@@ -1010,7 +1039,7 @@ namespace SharpTimer
                     {
                         Utils.PrintToChat(player, Localizer["no_respawnpos_bonus_index", 1]);
                     }
-                    Server.NextFrame(() =>
+                    NextFrameEnabled(() =>
                     {
                         playerTimers[slot].IsTimerRunning = false;
                         playerTimers[slot].TimerTicks = 0;
@@ -1047,7 +1076,7 @@ namespace SharpTimer
                 else
                     Utils.PrintToChat(player, Localizer["no_respawnpos_bonus"]);
 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     playerTimers[slot].IsTimerRunning = false;
                     playerTimers[slot].TimerTicks = 0;
@@ -1070,6 +1099,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void SetRespawnCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || respawnEnabled == false)
                 return;
 
@@ -1128,6 +1158,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void TPtoStagePlayer(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             try
             {
                 if (!IsAllowedPlayer(player) || respawnEnabled == false)
@@ -1179,7 +1210,7 @@ namespace SharpTimer
                     Utils.PrintToChat(player, Localizer["stages_unavalible_respawnpos", stageX]);
                 }
 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     playerTimers[slot].IsTimerRunning = false;
                     playerTimers[slot].TimerTicks = 0;
@@ -1200,6 +1231,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void RespawnPlayerCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || respawnEnabled == false)
                 return;
 
@@ -1215,8 +1247,9 @@ namespace SharpTimer
             {
                 Utils.PrintToChat(player, Localizer["ending_replay"]);
                 playerTimers[slot].IsReplaying = false;
+                ResetReplayPosture(player);
 
-                if (player.PlayerPawn.Value!.MoveType != MoveType_t.MOVETYPE_WALK || player.PlayerPawn.Value.ActualMoveType == MoveType_t.MOVETYPE_WALK) SetMoveType(player, MoveType_t.MOVETYPE_WALK);
+                if (player.PlayerPawn.Value!.MoveType != MoveType_t.MOVETYPE_WALK || player.PlayerPawn.Value.ActualMoveType != MoveType_t.MOVETYPE_WALK) SetMoveType(player, MoveType_t.MOVETYPE_WALK);
                     playerReplays.Remove(slot);
 
                 playerReplays[slot] = new PlayerReplays();
@@ -1241,6 +1274,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void EndPlayerCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || respawnEndEnabled == false)
                 return;
 
@@ -1257,7 +1291,7 @@ namespace SharpTimer
             playerTimers[slot].IsBonusTimerRunning = false;
             playerTimers[slot].BonusTimerTicks = 0;
 
-            Server.NextFrame(() => RespawnPlayer(player, true));
+            NextFrameEnabled(() => RespawnPlayer(player, true));
         }
 
         [ConsoleCommand("css_noclip", "Noclip")]
@@ -1265,6 +1299,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void NoclipCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (player == null || !player.PawnIsAlive || (enableNoclip == false && !AdminManager.PlayerHasPermissions(player, "@css/cheats")))
                 return;
 
@@ -1309,6 +1344,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void StyleCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player))
                 return;
 
@@ -1466,6 +1502,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void RanksCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player))
                 return;
 
@@ -1490,6 +1527,7 @@ namespace SharpTimer
 
         public void RespawnPlayer(CCSPlayerController player, bool toEnd = false)
         {
+            if (!IsEnabled) return;
             try
             {
                 var slot = player.Slot;
@@ -1531,7 +1569,7 @@ namespace SharpTimer
                         Utils.PrintToChat(player, Localizer["no_endpos"]);
                 }
 
-                Server.NextFrame(() =>
+                NextFrameEnabled(() =>
                 {
                     playerTimers[slot].StartZoneJumps = 0;
                     playerTimers[slot].IsTimerRunning = false;
@@ -1554,6 +1592,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void RestartCurrentStageCmd(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player))
                 return;
 
@@ -1605,6 +1644,8 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ForceStopTimer(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player))
                 return;
 
@@ -1678,6 +1719,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
         public void STVerCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (player == null || !IsPlayerOrSpectator(player))
             {
                 Utils.ConPrint($"This server is running SharpTimer v{ModuleVersion}");
@@ -1698,6 +1740,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_AND_SERVER)]
         public void HideCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player))
                 return;
 
@@ -1713,7 +1756,7 @@ namespace SharpTimer
             playerTimers[slot].HidePlayers = hidingPlayers;
 
             bool playerValid = IsAllowedPlayer(player);
-            _ = Task.Run(async () => await SetPlayerStats(player, steamID, playerName, slot, playerValid));
+            _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamID, playerName, slot, playerValid)));
             
             if (hidingPlayers)
                 Utils.PrintToChat(player, $"Hide: {ChatColors.Green}Enabled");
@@ -1725,6 +1768,7 @@ namespace SharpTimer
         [CommandHelper(minArgs: 1, usage: "[mode]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void ModeCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || goToEnabled == false) return;
             Utils.LogDebug($"{playerName} calling css_mode...");
 
@@ -1756,13 +1800,14 @@ namespace SharpTimer
                     break;
                 
             }
-            Server.NextFrame(() => Utils.PrintToChat(player, $"Mode changed to: {playerTimers[slot].Mode.ToString()}"));
+            NextFrameEnabled(() => Utils.PrintToChat(player, $"Mode changed to: {playerTimers[slot].Mode.ToString()}"));
         }
         */
         [ConsoleCommand("css_goto", "Teleports you to a player")]
         [CommandHelper(minArgs: 1, usage: "[name]", whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void GoToPlayer(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || goToEnabled == false)
                 return;
 
@@ -1829,6 +1874,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void SetPlayerCPCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || cpEnabled == false)
                 return;
 
@@ -1896,6 +1942,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void TpPlayerCPCommand(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || cpEnabled == false)
                 return;
 
@@ -1958,6 +2005,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void TpPreviousCP(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || cpEnabled == false)
                 return;
 
@@ -2017,6 +2065,7 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void TpNextCP(CCSPlayerController? player, CommandInfo command)
         {
+            if (!IsEnabled) return;
             if (!IsAllowedPlayer(player) || cpEnabled == false)
                 return;
 

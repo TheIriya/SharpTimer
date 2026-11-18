@@ -209,6 +209,8 @@ namespace SharpTimer
         public string? VipBigGif { get; set; }
 
         //admin stuff
+        internal ZoneToolShotInput ZoneToolGun { get; } = new();
+        internal ZoneToolPendingRegion? PendingZoneToolRegion { get; set; }
         public bool IsAddingStartZone { get; set; }
         public bool IsAddingBonusStartZone { get; set; }
         public string? StartZoneC1 { get; set; }
@@ -280,6 +282,8 @@ namespace SharpTimer
     //Replay stuff
     public class PlayerReplays
     {
+        internal ReplayCameraContinuity CameraContinuity { get; } = new();
+        internal PlayerButtons? LastPlaybackButtons { get; set; }
         public int CurrentPlaybackFrame { get; set; }
         public int BonusX { get; set; }
         public int Style { get; set; }

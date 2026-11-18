@@ -9,3 +9,60 @@ CounterStrikeSharp.API.dll
 /src/Properties/PublishProfiles/FolderProfile.pubxml.user
 /Build
 SharpTimer-main.sln.DotSettings.user
+
+# IDE settings and local publish profiles
+**/.idea/
+*.user
+*.suo
+*.sln.docstates
+*.DotSettings.user
+**/Properties/PublishProfiles/
+
+# Generated release packages and test output
+/publish/
+/package/
+/release-artifacts/
+/SharpTimer-v*.zip
+**/TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# Local credentials and environment overrides (keep example templates public)
+.env
+.env.*
+!.env.example
+/cfg/SharpTimer/config.cfg
+/cfg/SharpTimer/custom_exec.cfg
+/cfg/SharpTimer/admessages.txt
+/cfg/SharpTimer/mysqlConfig.json
+/cfg/SharpTimer/postgresConfig.json
+/cfg/SharpTimer/discordConfig.json
+/cfg/SharpTimer/ranks.json
+/cfg/SharpTimer/hud.json
+/cfg/SharpTimer/replay_hud.json
+/cfg/SharpTimer/MapData/local_data/*
+!/cfg/SharpTimer/MapData/local_data/example.*
+/cfg/SharpTimer/MapData/MapExecs/*
+!/cfg/SharpTimer/MapData/MapExecs/example.*
+
+# Server records, replay recordings and database sidecar files
+/cfg/SharpTimer/PlayerRecords/
+/cfg/SharpTimer/PlayerReplayData/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Logs, temporary files and OS metadata
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+.DS_Store
+Thumbs.db
+Desktop.ini

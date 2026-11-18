@@ -84,16 +84,17 @@ public partial class SharpTimer
 
     public void SetPlayerMode(CCSPlayerController player, Mode mode)
     {
+        if (!IsEnabled) return;
         playerTimers[player.Slot].Mode = GetModeName(mode);
         playerTimers[player.Slot].ChangedMode = true;
         
-        Server.NextFrame(() =>
+        NextFrameEnabled(() =>
         {
             bool playerValid = IsAllowedPlayer(player);
             var steamId = player.SteamID.ToString();
             var playerName = player.PlayerName;
             var slot = player.Slot;
-            _ = Task.Run(async () => await SetPlayerStats(player, steamId, playerName, slot, playerValid));
+            _ = RunEnabled(async () => await AwaitEnabled(SetPlayerStats(player, steamId, playerName, slot, playerValid)));
         });
         playerTimers[player.Slot].RespawnPos = "";
         playerTimers[player.Slot].BonusRespawnPos = "";
@@ -154,6 +155,7 @@ public partial class SharpTimer
     [ConsoleCommand("css_mode")]
     public void ModeCommand(CCSPlayerController? player, CommandInfo command)
     {
+        if (!IsEnabled) return;
         if (!IsAllowedPlayer(player))
             return;
 
@@ -190,7 +192,7 @@ public partial class SharpTimer
         {
             SetPlayerMode(player, newMode);
             Utils.PrintToChat(player, Localizer["mode_set", GetModeName(newMode)]);
-            AddTimer(0.1f, () =>
+            AddEnabledTimer(0.1f, () =>
             {
                 RespawnPlayer(player);
             });

@@ -22,6 +22,7 @@ namespace SharpTimer
     {
         private void OnPlayerConnect(CCSPlayerController? player, bool isForBot = false)
         {
+            if (!IsEnabled) return;
             try
             {
                 if (player == null)
@@ -41,6 +42,8 @@ namespace SharpTimer
                     Utils.LogError("MovementServices is null.");
                     return;
                 }
+
+                CapturePlayerSettings(player);
 
                 int slot = player.Slot;
                 string playerName = player.PlayerName;
@@ -78,9 +81,9 @@ namespace SharpTimer
                     {
                         string steamID = player.SteamID.ToString();
                         
-                        _ = Task.Run(async () =>
+                        _ = RunEnabled(async () =>
                         {
-                            await GetPlayerStats(player, steamID, playerName, slot, true);
+                            await AwaitEnabled(GetPlayerStats(player, steamID, playerName, slot, true));
                         });
 
                         if (cmdJoinMsgEnabled)
@@ -140,6 +143,7 @@ namespace SharpTimer
         {
             try
             {
+                _playerSettings.Remove(slot);
                 bool wasTracked = connectedPlayers.Remove(slot);
                 playerTimers.Remove(slot);
                 playerCheckpoints.Remove(slot);
@@ -177,7 +181,7 @@ namespace SharpTimer
             }
         }
 
-        private void OnMapEndHandler()
+        private void ClearPlayerState()
         {
             connectedPlayers.Clear();
             playerTimers.Clear();
