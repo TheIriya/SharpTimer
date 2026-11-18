@@ -370,7 +370,11 @@ namespace SharpTimer
             int serverRecordBonus = playerTimer.IsBonusTimerRunning
                 ? playerTimer.BonusStage
                 : playerTimer.CurrentZoneInfo.InBonusStartZone ? playerTimer.CurrentZoneInfo.CurrentBonusNumber : 0;
-            string serverRecord = GetHudServerRecord(serverRecordBonus, playerTimer.currentStyle, playerTimer.Mode);
+            var serverRecordData = GetHudServerRecord(serverRecordBonus, playerTimer.currentStyle, playerTimer.Mode);
+            string serverRecord = serverRecordData.Holder.Length > 0
+                ? $"{serverRecordData.Holder} | {serverRecordData.Time}"
+                : "";
+            string serverRecordTime = serverRecordData.Time;
             string stage = playerTimer.CurrentMapStage != 0 && useStageTriggers
                 ? $"{playerTimer.CurrentMapStage}/{stageTriggerCount}"
                 : "";
@@ -393,6 +397,7 @@ namespace SharpTimer
                 ["style"] = currentStyle,
                 ["bonus"] = bonus,
                 ["serverRecord"] = serverRecord,
+                ["serverRecordTime"] = serverRecordTime,
                 ["progress"] = progress,
                 ["left"] = (playerButtons & PlayerButtons.Moveleft) != 0 ? appearance.Texts.Left : appearance.Texts.EmptyKey,
                 ["forward"] = (playerButtons & PlayerButtons.Forward) != 0 ? appearance.Texts.Forward : appearance.Texts.EmptyKey,
@@ -445,6 +450,9 @@ namespace SharpTimer
                     : "",
                 ["serverRecord"] = hudEnabled && serverRecord.Length > 0
                     ? appearance.StyledText("serverRecord", appearance.Text("serverRecord", values), "serverRecord", "serverRecord", appearance.FontClasses.Info)
+                    : "",
+                ["serverRecordTime"] = hudEnabled && serverRecordTime.Length > 0
+                    ? appearance.StyledText("serverRecordTime", appearance.Text("serverRecordTime", values), "serverRecordTime", "serverRecordTime", appearance.FontClasses.Info)
                     : "",
                 ["keys"] = keyEnabled
                     ? appearance.StyledText("keys", appearance.Text("keys", values), "keys", "Keys", appearance.FontClasses.Keys)

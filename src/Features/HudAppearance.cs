@@ -7,7 +7,7 @@ namespace SharpTimer;
 internal sealed class HudAppearance
 {
     private static readonly string[] LayoutTokens =
-    ["replay", "timer", "speed", "preSpeed", "sync", "placement", "recordPlacement", "stage", "info", "mapInfo", "mode", "style", "bonus", "serverRecord", "keys", "progress"];
+    ["replay", "timer", "speed", "preSpeed", "sync", "placement", "recordPlacement", "stage", "info", "mapInfo", "mode", "style", "bonus", "serverRecord", "serverRecordTime", "keys", "progress"];
     private static readonly Regex TokenPattern = new(@"\{([A-Za-z][A-Za-z0-9]*)\}", RegexOptions.Compiled);
 
     public HudColors Colors { get; set; } = new();
@@ -16,7 +16,7 @@ internal sealed class HudAppearance
     public HudTexts Texts { get; set; } = new();
     public HudPosition Position { get; set; } = new();
     public HudSectionStyles SectionStyles { get; set; } = new();
-    public string[] Layout { get; set; } = ["{replay}{timer}", "{speed} {preSpeed}", "{placement} {recordPlacement} {stage}", "{info} {style} {mode} {bonus}", "{serverRecord}", "{mapInfo}", "{keys}"];
+    public string[] Layout { get; set; } = ["{replay}{timer}", "{speed} {preSpeed}", "{placement} {recordPlacement} {stage}", "{info} {style} {mode} {bonus}", "{serverRecord}", "{serverRecordTime}", "{mapInfo}", "{keys}"];
 
     public bool HasLayoutToken(string token) => Layout.Any(row => row.Contains($"{{{token}}}", StringComparison.Ordinal));
 
@@ -122,6 +122,7 @@ internal sealed class HudColors
     public string RecordPlacement { get; set; } = "#808080";
     public string Style { get; set; } = "#FFFFFF";
     public string ServerRecord { get; set; } = "#FFCC66";
+    public string ServerRecordTime { get; set; } = "#FFCC66";
 
     public string? For(string key) => key switch
     {
@@ -129,7 +130,7 @@ internal sealed class HudColors
         "speed" => SpeedValue, "preSpeed" => PreSpeed,
         "sync" => SyncValue, "placement" => Placement,
         "stage" => Stage, "info" => Info, "mapInfo" => MapInfo, "mode" => Mode,
-        "bonus" => Bonus, "serverRecord" => ServerRecord, "keys" => Keys, "progress" => Progress,
+        "bonus" => Bonus, "serverRecord" => ServerRecord, "serverRecordTime" => ServerRecordTime, "keys" => Keys, "progress" => Progress,
         "recordPlacement" => RecordPlacement, "style" => Style,
         _ => null
     };
@@ -143,10 +144,12 @@ internal sealed class HudFontClasses
     public string Info { get; set; } = "fontSize-s stratum-bold-italic";
     public string Keys { get; set; } = "fontSize-ml stratum-light-mono";
     public string Replay { get; set; } = "horizontal-center";
+    public string ServerRecordTime { get; set; } = "";
     public string For(string key, string fallback) => key switch
     {
         "Label" => Label, "Value" => Value, "ReplayValue" => ReplayValue,
-        "Info" => Info, "Keys" => Keys, "Replay" => Replay, _ => fallback
+        "Info" => Info, "Keys" => Keys, "Replay" => Replay,
+        "serverRecordTime" => ServerRecordTime, _ => fallback
     };
 }
 
@@ -166,6 +169,7 @@ internal sealed class HudFontSizes
     public string RecordPlacement { get; set; } = "";
     public string Style { get; set; } = "";
     public string ServerRecord { get; set; } = "";
+    public string ServerRecordTime { get; set; } = "";
     public string Label { get; set; } = "";
     public string Value { get; set; } = "";
     public string ReplayValue { get; set; } = "";
@@ -176,7 +180,7 @@ internal sealed class HudFontSizes
     {
         "replay" => ReplayHeader, "timer" => Timer, "speed" => Speed, "preSpeed" => PreSpeed,
         "sync" => Sync, "placement" => Placement, "recordPlacement" => RecordPlacement,
-        "stage" => Stage, "mapInfo" => MapInfo, "mode" => Mode, "style" => Style, "serverRecord" => ServerRecord,
+        "stage" => Stage, "mapInfo" => MapInfo, "mode" => Mode, "style" => Style, "serverRecord" => ServerRecord, "serverRecordTime" => ServerRecordTime,
         "bonus" => Bonus, "progress" => Progress,
         "Label" => Label, "Value" => Value, "ReplayValue" => ReplayValue,
         "Info" => Info, "Keys" => Keys, "Replay" => Replay, _ => ""
@@ -199,6 +203,7 @@ internal sealed class HudTexts
     public string Mode { get; set; } = "{mode}";
     public string Style { get; set; } = "{style}";
     public string ServerRecord { get; set; } = "{serverRecord}";
+    public string ServerRecordTime { get; set; } = "SR time: {serverRecordTime}";
     public string NoRecord { get; set; } = "无记录";
     public string Bonus { get; set; } = "{bonus}";
     public string Keys { get; set; } = "{left} {forward} {right} {back} {jump} {duck}";
@@ -216,12 +221,12 @@ internal sealed class HudTexts
         "speed" => Speed, "preSpeed" => PreSpeed, "sync" => Sync, "placement" => Placement,
         "stage" => Stage, "info" => Info, "mapInfo" => MapInfo, "mode" => Mode, "style" => Style,
         "recordPlacement" => RecordPlacement,
-        "bonus" => Bonus, "serverRecord" => ServerRecord, "keys" => Keys, "progress" => Progress, _ => ""
+        "bonus" => Bonus, "serverRecord" => ServerRecord, "serverRecordTime" => ServerRecordTime, "keys" => Keys, "progress" => Progress, _ => ""
     };
 
     public void Validate()
     {
-        string[] known = ["time", "speed", "preSpeed", "sync", "placement", "recordPlacement", "stage", "info", "mapInfo", "mode", "style", "bonus", "serverRecord", "keys", "progress", "left", "forward", "right", "back", "jump", "duck"];
+        string[] known = ["time", "speed", "preSpeed", "sync", "placement", "recordPlacement", "stage", "info", "mapInfo", "mode", "style", "bonus", "serverRecord", "serverRecordTime", "keys", "progress", "left", "forward", "right", "back", "jump", "duck"];
         foreach (var property in GetType().GetProperties().Where(property => property.PropertyType == typeof(string)))
         {
             string template = (string?)property.GetValue(this) ?? throw new JsonException($"Text template {property.Name} cannot be null.");
@@ -252,12 +257,13 @@ internal sealed class HudPosition
     public string RecordPlacement { get; set; } = "";
     public string Style { get; set; } = "";
     public string ServerRecord { get; set; } = "";
+    public string ServerRecordTime { get; set; } = "";
     public string For(string key) => key switch
     {
         "replay" => Replay, "timer" => Timer, "speed" => Speed, "preSpeed" => PreSpeed,
         "sync" => Sync, "placement" => Placement, "recordPlacement" => RecordPlacement,
         "stage" => Stage, "info" => Info, "mapInfo" => MapInfo, "mode" => Mode,
-        "style" => Style, "bonus" => Bonus, "serverRecord" => ServerRecord, "keys" => Keys,
+        "style" => Style, "bonus" => Bonus, "serverRecord" => ServerRecord, "serverRecordTime" => ServerRecordTime, "keys" => Keys,
         "progress" => Progress, _ => ""
     };
 }
@@ -282,16 +288,17 @@ internal sealed class HudSectionStyles
     public HudElementStyle RecordPlacement { get; set; } = new();
     public HudElementStyle Style { get; set; } = new();
     public HudElementStyle ServerRecord { get; set; } = new();
+    public HudElementStyle ServerRecordTime { get; set; } = new();
     public HudElementStyle For(string key) => key switch
     {
         "Container" => Container, "Row" => Row, "replay" => Replay, "timer" => Timer,
         "speed" => Speed, "preSpeed" => PreSpeed, "sync" => Sync, "placement" => Placement,
-        "recordPlacement" => RecordPlacement, "stage" => Stage, "info" => Info, "mapInfo" => MapInfo, "mode" => Mode, "style" => Style, "serverRecord" => ServerRecord,
+        "recordPlacement" => RecordPlacement, "stage" => Stage, "info" => Info, "mapInfo" => MapInfo, "mode" => Mode, "style" => Style, "serverRecord" => ServerRecord, "serverRecordTime" => ServerRecordTime,
         "bonus" => Bonus, "keys" => Keys, "progress" => Progress, _ => new()
     };
     public bool HasNullStyle() => Container == null || Row == null || Replay == null || Timer == null ||
         Speed == null || PreSpeed == null || Sync == null || Placement == null || RecordPlacement == null ||
-        Stage == null || Info == null || MapInfo == null || Mode == null || Style == null || ServerRecord == null || Bonus == null || Keys == null || Progress == null;
+        Stage == null || Info == null || MapInfo == null || Mode == null || Style == null || ServerRecord == null || ServerRecordTime == null || Bonus == null || Keys == null || Progress == null;
 }
 
 internal sealed class HudElementStyle

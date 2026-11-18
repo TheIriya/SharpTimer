@@ -8,19 +8,19 @@ public partial class SharpTimer
 {
     private HudAppearance _timerHud = new();
     private HudAppearance _replayHud = new();
-    private readonly Dictionary<string, (string Value, DateTime ExpiresAt)> _hudServerRecordCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Holder, string Time, DateTime ExpiresAt)> _hudServerRecordCache = new(StringComparer.Ordinal);
     private readonly HashSet<string> _hudServerRecordPending = new(StringComparer.Ordinal);
 
-    private string GetHudServerRecord(int bonus, int style, string mode)
+    private (string Holder, string Time) GetHudServerRecord(int bonus, int style, string mode)
     {
         string map = currentMapName ?? "";
         string key = $"{map}|{bonus}|{style}|{mode}";
         if (_hudServerRecordCache.TryGetValue(key, out var cached))
         {
-            if (cached.ExpiresAt > DateTime.UtcNow) return cached.Value;
+            if (cached.ExpiresAt > DateTime.UtcNow) return (cached.Holder, cached.Time);
             _hudServerRecordCache.Remove(key);
         }
-        if (!_hudServerRecordPending.Add(key)) return "";
+        if (!_hudServerRecordPending.Add(key)) return ("", "");
 
         _ = RunEnabled(async () =>
         {
@@ -29,13 +29,12 @@ public partial class SharpTimer
                 var result = enableDb
                     ? await AwaitEnabled(GetMapRecordSteamIDFromDatabase(bonus, 0, style, mode))
                     : await AwaitEnabled(GetMapRecordSteamID(bonus));
-                string formatted = result.Item3 > 0 && result.Item2 != "null"
-                    ? $"{result.Item2} | {Utils.FormatTime(result.Item3)}"
-                    : "";
+                string holder = result.Item3 > 0 && result.Item2 != "null" ? result.Item2 : "";
+                string time = result.Item3 > 0 && result.Item2 != "null" ? Utils.FormatTime(result.Item3) : "";
                 NextFrameEnabled(() =>
                 {
                     _hudServerRecordPending.Remove(key);
-                    if (currentMapName == map) _hudServerRecordCache[key] = (formatted, DateTime.UtcNow.AddSeconds(30));
+                    if (currentMapName == map) _hudServerRecordCache[key] = (holder, time, DateTime.UtcNow.AddSeconds(30));
                 });
             }
             catch (Exception ex)
@@ -48,7 +47,7 @@ public partial class SharpTimer
             }
         });
 
-        return "";
+        return ("", "");
     }
 
     private void LoadHudConfigurations()

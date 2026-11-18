@@ -14,6 +14,7 @@
     "Style": "#FFFFFF",
     "Bonus": "#FFFFFF",
     "ServerRecord": "#FFCC66",
+    "ServerRecordTime": "#FFCC66",
     "Keys": "#FFFFFF",
     "Progress": "#FF3030"
   },
@@ -23,7 +24,8 @@
     "ReplayValue": "",
     "Info": "fontSize-s stratum-bold-italic",
     "Keys": "fontSize-ml stratum-light-mono",
-    "Replay": "horizontal-center"
+    "Replay": "horizontal-center",
+    "ServerRecordTime": ""
   },
   "FontSizes": {
     "ReplayHeader": "",
@@ -39,6 +41,7 @@
     "Style": "",
     "Bonus": "",
     "ServerRecord": "",
+    "ServerRecordTime": "",
     "Progress": "",
     "Label": "",
     "Value": "",
@@ -64,6 +67,7 @@
     "Style": "{style}",
     "Bonus": "Bonus #{bonus}",
     "ServerRecord": "SR: {serverRecord}",
+    "ServerRecordTime": "SR time: {serverRecordTime}",
     "Keys": "{left} {forward} {right} {back} {jump} {duck}",
     "Progress": "{progress}",
     "Left": "A",
@@ -91,6 +95,7 @@
     "Style": "",
     "Bonus": "",
     "ServerRecord": "",
+    "ServerRecordTime": "",
     "Keys": "",
     "Progress": ""
   },
@@ -111,6 +116,7 @@
     "Style": { "Class": "", "Style": "" },
     "Bonus": { "Class": "", "Style": "" },
     "ServerRecord": { "Class": "", "Style": "" },
+    "ServerRecordTime": { "Class": "", "Style": "" },
     "Keys": { "Class": "", "Style": "" },
     "Progress": { "Class": "", "Style": "" }
   },
@@ -120,6 +126,7 @@
     "{placement} {recordPlacement} {stage}",
     "{info} {style} {mode} {bonus}",
     "{serverRecord}",
+    "{serverRecordTime}",
     "{mapInfo}",
     "{keys}"
   ]

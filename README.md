@@ -78,10 +78,11 @@ Font classes use CS2's center HTML HUD classes, such as `fontSize-s`, `fontSize-
 | `{placement}` / `{recordPlacement}` / `{stage}` | Current timer placement, server-record placement and map stage |
 | `{info}` / `{mapInfo}` / `{style}` / `{mode}` / `{bonus}` | Personal/record time, map details, style/mode and bonus information |
 | `{serverRecord}` | Current server-record holder and time for the selected map, bonus, style and mode |
+| `{serverRecordTime}` | Current server-record first-place time only, for the selected map, bonus, style and mode |
 | `{keys}` | Configurable movement key labels (`J` = jump and `C` = crouch by default) |
 | `{progress}` | Current replay frame and total frame count |
 
-Rows are joined with `<br>`; empty rows are skipped. Reorder rows to move items or put multiple placeholders on one line. `Texts` supports value placeholders including `{time}`, `{speed}`, `{preSpeed}`, `{sync}`, `{placement}`, `{recordPlacement}`, `{stage}`, `{info}`, `{mapInfo}`, `{style}`, `{mode}`, `{bonus}`, `{serverRecord}`, and `{progress}`. The `Keys` template also supports `{left}`, `{forward}`, `{right}`, `{back}`, `{jump}` and `{duck}`. Text values are rendered as plain text. CSS position declarations are applied independently to every item; for example, `"Replay": "position:relative; top:-12px; left:8px"` moves the replay header within the center HUD. Available CSS behavior depends on the CS2 center HTML renderer.
+Rows are joined with `<br>`; empty rows are skipped. Reorder rows to move items or put multiple placeholders on one line. `Texts` supports value placeholders including `{time}`, `{speed}`, `{preSpeed}`, `{sync}`, `{placement}`, `{recordPlacement}`, `{stage}`, `{info}`, `{mapInfo}`, `{style}`, `{mode}`, `{bonus}`, `{serverRecord}`, `{serverRecordTime}`, and `{progress}`. The `Keys` template also supports `{left}`, `{forward}`, `{right}`, `{back}`, `{jump}` and `{duck}`. Text values are rendered as plain text. CSS position declarations are applied independently to every item; for example, `"Replay": "position:relative; top:-12px; left:8px"` moves the replay header within the center HUD. Available CSS behavior depends on the CS2 center HTML renderer.
 
 Font sizes accept CSS values such as `18px` and `1.2em`. `SectionStyles` can add a class and style per item. For example, this compact layout puts keys above the speed and replay heading:
 

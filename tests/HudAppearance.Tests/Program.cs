@@ -16,16 +16,19 @@ Check(normal.Layout.Contains("{speed} {preSpeed}"), "Example displays speed and 
 Check(normal.Layout.Contains("{keys}"), "Normal HUD example keeps movement keys visible");
 Check(replay.Layout.Contains("{keys}"), "Replay HUD example keeps movement keys visible");
 Check(normal.Layout.Contains("{serverRecord}"), "Server record is available as a HUD row");
-normal.Layout = ["{keys}", "{serverRecord}", "{replay}", "{speed} {preSpeed}"];
+Check(normal.Layout.Contains("{serverRecordTime}"), "Server record time has an independent HUD row");
+normal.Layout = ["{keys}", "{serverRecordTime}", "{serverRecord}", "{replay}", "{speed} {preSpeed}"];
 var elements = new Dictionary<string, string>
 {
     ["keys"] = normal.Element("keys", "<font>W _</font>"),
     ["serverRecord"] = normal.StyledText("serverRecord", normal.Text("serverRecord", new Dictionary<string, string> { ["serverRecord"] = "Player | 12.34s" }), "serverRecord", "serverRecord", ""),
+    ["serverRecordTime"] = normal.StyledText("serverRecordTime", normal.Text("serverRecordTime", new Dictionary<string, string> { ["serverRecordTime"] = "12.34s" }), "serverRecordTime", "serverRecordTime", ""),
     ["replay"] = normal.Element("replay", "Replay 52.4s"),
     ["speed"] = normal.Element("speed", "500"),
     ["preSpeed"] = normal.Element("preSpeed", "(258)")
 };
 Check(normal.Render(elements).Contains("SR: Player | 12.34s"), "Server record text is substituted into the HUD layout");
+Check(normal.Render(elements).Contains("SR time: 12.34s"), "Server record time is independently formatted in the HUD");
 string rendered = normal.Render(elements);
 Check(rendered.IndexOf("<font>W _</font>", StringComparison.Ordinal) < rendered.IndexOf("SR: Player | 12.34s", StringComparison.Ordinal) &&
       rendered.IndexOf("SR: Player | 12.34s", StringComparison.Ordinal) < rendered.IndexOf("Replay 52.4s", StringComparison.Ordinal) &&
@@ -59,6 +62,7 @@ try
     Check(config.FontSizes.Speed == "21px", "Per-item font size loads");
     Check(config.Position.Replay == "top:-10px; left:6px", "Per-item position loads");
     Check(config.Texts.ReplayTime == "RUN {time}", "Text can be changed independently");
+    Check(config.Texts.ServerRecordTime == "SR time: {serverRecordTime}", "Server record time template loads independently");
 
     foreach (string invalid in new[]
     {
