@@ -18,6 +18,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using FixVectorLeak;
+using System.Numerics;
 
 namespace SharpTimer
 {
@@ -333,40 +334,33 @@ namespace SharpTimer
         {
             var appearance = playerTimer.IsReplaying ? _replayHud : _timerHud;
             PlayerButtons? playerButtons = player.Buttons;
+            ReplayHudMetrics? replayHudMetrics = null;
             if (playerTimer.IsReplaying)
-                playerButtons = playerReplays.TryGetValue(player.Slot, out var replay) ? replay.LastPlaybackButtons : null;
+            {
+                if (playerReplays.TryGetValue(player.Slot, out var replay))
+                {
+                    playerButtons = replay.LastPlaybackButtons;
+                    replayHudMetrics = replay.HudMetrics;
+                }
+                else playerButtons = null;
+            }
             Vector_t playerSpeed = player.PlayerPawn!.Value!.AbsVelocity.ToVector_t();
             bool keyEnabled = keysOverlayEnabled && (showKeys ?? !playerTimer.HideKeys);
             bool hudEnabled = !playerTimer.HideTimerHud && hudOverlayEnabled;
-            string formattedPlayerVel = Math.Round(use2DSpeed
-                ? playerSpeed.Length2D()
-                : playerSpeed.Length())
-                .ToString("0000");
-            string formattedPlayerPre = Math.Round(Utils.ParseVector_t(playerTimer.PreSpeed ?? "0 0 0").Length2D()).ToString("000");
+            Vector3 velocity = new(playerSpeed.X, playerSpeed.Y, playerSpeed.Z);
+            if (playerTimer.IsReplaying && replayHudMetrics?.LastSpeed is { } recordedSpeed)
+                velocity = recordedSpeed;
+            string formattedPlayerVel = HudSpeedMetrics.Format(HudSpeedMetrics.Measure(velocity, use2DSpeed));
+            double preSpeed = Math.Round(Utils.ParseVector_t(playerTimer.PreSpeed ?? "0 0 0").Length2D());
+            if (playerTimer.IsReplaying && replayHudMetrics?.TakeoffSpeed is { } recordedTakeoffSpeed)
+                preSpeed = recordedTakeoffSpeed;
+            string formattedPlayerPre = HudSpeedMetrics.Format(preSpeed);
             string time = playerTimer.IsBonusTimerRunning
                 ? Utils.FormatTime(playerTimer.BonusTimerTicks)
                 : playerTimer.IsReplaying
                     ? Utils.FormatTime(playerReplays[player.Slot].CurrentPlaybackFrame)
                     : Utils.FormatTime(playerTimer.TimerTicks);
             string mapInfo = GetMapDataLine();
-            string info = playerTimer.IsReplaying
-                ? playerTimer.ReplayHUDString ?? ""
-                : playerTimer.CurrentZoneInfo.InBonusStartZone
-                    ? playerTimer.CachedBonusInfo.FirstOrDefault(x => x.Key == playerTimer.CurrentZoneInfo.CurrentBonusNumber).Value is { } bonusInfo
-                        ? Utils.FormatTime(bonusInfo.PbTicks)
-                        : appearance.Texts.NoRecord
-                    : playerTimer.CachedPB ?? "";
-            string mode = playerTimer.IsReplaying ? "" : playerTimer.Mode;
-            string currentStyle = playerTimer.IsReplaying || !enableStyles || playerTimer.currentStyle == 0
-                ? ""
-                : GetNamedStyle(playerTimer.currentStyle);
-            string recordPlacement = playerTimer.IsReplaying ? "" : playerTimer.CachedMapPlacement?.ToString() ?? "";
-            if (string.Equals(recordPlacement, UnrankedTitle, StringComparison.OrdinalIgnoreCase) ||
-                recordPlacement.Contains("Unranked", StringComparison.OrdinalIgnoreCase))
-                recordPlacement = appearance.Texts.NoRecord;
-            string bonus = playerTimer.CurrentZoneInfo.InBonusStartZone
-                ? playerTimer.CurrentZoneInfo.CurrentBonusNumber.ToString()
-                : playerTimer.IsBonusTimerRunning ? playerTimer.BonusStage.ToString() : "";
             int serverRecordBonus = playerTimer.IsBonusTimerRunning
                 ? playerTimer.BonusStage
                 : playerTimer.CurrentZoneInfo.InBonusStartZone ? playerTimer.CurrentZoneInfo.CurrentBonusNumber : 0;
@@ -375,6 +369,27 @@ namespace SharpTimer
                 ? $"{serverRecordData.Holder} | {serverRecordData.Time}"
                 : "";
             string serverRecordTime = serverRecordData.Time;
+            string info = playerTimer.IsReplaying
+                ? playerTimer.ReplayHUDString ?? ""
+                : serverRecordBonus != 0
+                    ? playerTimer.CachedBonusInfo.TryGetValue(serverRecordBonus, out var bonusInfo)
+                        ? Utils.FormatTime(bonusInfo.PbTicks)
+                        : $"[{appearance.NoRecord(serverRecordData.TotalPlayers)}]"
+                    : playerTimer.CachedPB ?? "";
+            bool hasPersonalBest = !playerTimer.IsReplaying && (serverRecordBonus != 0
+                    ? playerTimer.CachedBonusInfo.TryGetValue(serverRecordBonus, out var currentBonusPb) && currentBonusPb.PbTicks > 0
+                    : !string.IsNullOrWhiteSpace(playerTimer.CachedPB));
+            string mode = playerTimer.IsReplaying ? "" : playerTimer.Mode;
+            string currentStyle = playerTimer.IsReplaying || !enableStyles || playerTimer.currentStyle == 0
+                ? ""
+                : GetNamedStyle(playerTimer.currentStyle);
+            string recordPlacement = playerTimer.IsReplaying ? "" : playerTimer.CachedMapPlacement?.ToString() ?? "";
+            if (string.Equals(recordPlacement, UnrankedTitle, StringComparison.OrdinalIgnoreCase) ||
+                recordPlacement.Contains("Unranked", StringComparison.OrdinalIgnoreCase))
+                recordPlacement = appearance.NoRecord(serverRecordData.TotalPlayers);
+            string bonus = playerTimer.CurrentZoneInfo.InBonusStartZone
+                ? playerTimer.CurrentZoneInfo.CurrentBonusNumber.ToString()
+                : playerTimer.IsBonusTimerRunning ? playerTimer.BonusStage.ToString() : "";
             string stage = playerTimer.CurrentMapStage != 0 && useStageTriggers
                 ? $"{playerTimer.CurrentMapStage}/{stageTriggerCount}"
                 : "";
@@ -406,6 +421,11 @@ namespace SharpTimer
                 ["jump"] = (playerButtons & PlayerButtons.Jump) != 0 || (!playerTimer.IsReplaying && playerTimer.MovementService!.LegacyJump.OldJumpPressed) ? appearance.Texts.Jump : appearance.Texts.EmptyKey,
                 ["duck"] = (playerButtons & PlayerButtons.Duck) != 0 ? appearance.Texts.Duck : appearance.Texts.EmptyKey
             };
+            string formattedInfo = info.Length > 0 ? appearance.Text("info", values) : "";
+            formattedInfo = HudAppearance.FormatRecordSeparator(
+                formattedInfo,
+                serverRecordTime.Length > 0 && hasPersonalBest,
+                appearance.Colors.RecordSeparator);
 
             var elements = new Dictionary<string, string>
             {
@@ -422,7 +442,7 @@ namespace SharpTimer
                     ? appearance.StyledText("preSpeed", appearance.Text("preSpeed", values), "preSpeed", "preSpeed", appearance.FontClasses.Info)
                     : "",
                 ["sync"] = hudEnabled && StrafeHudEnabled && !playerTimer.IsReplaying
-                    ? appearance.StyledText("sync", appearance.Text("sync", values), "sync", "sync", appearance.FontClasses.Value)
+                    ? appearance.StyledText("sync", appearance.Text("sync", values), "sync", "sync", appearance.FontClasses.Sync)
                     : "",
                 ["placement"] = hudEnabled && placement.Length > 0
                     ? appearance.StyledText("placement", appearance.Text("placement", values), "placement", "placement", appearance.FontClasses.Info)
@@ -434,7 +454,7 @@ namespace SharpTimer
                     ? appearance.StyledText("stage", appearance.Text("stage", values), "stage", "stage", appearance.FontClasses.Info)
                     : "",
                 ["info"] = hudEnabled && info.Length > 0
-                    ? appearance.StyledText("info", appearance.Text("info", values), "info", "info", appearance.FontClasses.Info)
+                    ? appearance.StyledText("info", formattedInfo, "info", "info", appearance.FontClasses.Info)
                     : "",
                 ["mapInfo"] = hudEnabled && mapInfo.Length > 0
                     ? appearance.StyledText("mapInfo", appearance.Text("mapInfo", values), "mapInfo", "mapInfo", appearance.FontClasses.Info)

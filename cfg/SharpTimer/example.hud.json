@@ -15,6 +15,7 @@
     "Bonus": "#FFFFFF",
     "ServerRecord": "#FFCC66",
     "ServerRecordTime": "#FFCC66",
+    "RecordSeparator": "#FFFFFF",
     "Keys": "#FFFFFF",
     "Progress": "#FF3030"
   },
@@ -23,6 +24,7 @@
     "Value": "fontSize-l horizontal-center",
     "ReplayValue": "",
     "Info": "fontSize-s stratum-bold-italic",
+    "Sync": "fontSize-l horizontal-center",
     "Keys": "fontSize-ml stratum-light-mono",
     "Replay": "horizontal-center",
     "ServerRecordTime": ""
@@ -61,7 +63,7 @@
     "RecordPlacement": "[{recordPlacement}]",
     "Stage": "{stage}",
     "Info": "{info}",
-    "NoRecord": "No record",
+    "NoRecord": "无排名({totalPlayers})",
     "MapInfo": "{mapInfo}",
     "Mode": "{mode}",
     "Style": "{style}",

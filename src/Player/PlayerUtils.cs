@@ -649,6 +649,7 @@ namespace SharpTimer
 
             NextFrameEnabled(() =>
             {
+                RefreshHudRecordsAfterFinish(bonusX, style, mode);
                 bool playerValid = IsAllowedPlayer(player);
                 if (newSR)
                 {

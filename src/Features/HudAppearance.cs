@@ -45,12 +45,15 @@ internal sealed class HudAppearance
 
     public string Render(IReadOnlyDictionary<string, string> elements)
     {
-        string rows = string.Join("<br>", Layout.Select(row => TokenPattern.Replace(row,
+        string[] rows = Layout.Select(row => TokenPattern.Replace(row,
                 match => elements.GetValueOrDefault(match.Groups[1].Value, "")))
             .Where(row => !string.IsNullOrWhiteSpace(row))
-            .Select(row => Wrap(row, Position.Row, SectionStyles.Row)));
-        string content = Wrap(rows, Position.Container, SectionStyles.Container);
-        return string.IsNullOrEmpty(rows) ? content : content + "<br>";
+            .ToArray();
+        if (rows.Length == 0) return "";
+
+        string content = string.Join("<br>", rows.Select(row => Wrap(row, Position.Row, SectionStyles.Row)));
+        content = Wrap(content, Position.Container, SectionStyles.Container);
+        return content + "<br><font style='font-size:0px;line-height:0px'>&#8203;</font>";
     }
 
     public string Element(string key, string value)
@@ -65,6 +68,25 @@ internal sealed class HudAppearance
         string template = Texts.For(key);
         return WebUtility.HtmlEncode(TokenPattern.Replace(template,
             match => values.GetValueOrDefault(match.Groups[1].Value, "")));
+    }
+
+    public string NoRecord(int totalPlayers)
+    {
+        string template = Texts.NoRecord;
+        if (!template.Contains("{totalPlayers}", StringComparison.Ordinal))
+            template += $"({totalPlayers})";
+        return WebUtility.HtmlEncode(TokenPattern.Replace(template,
+            match => match.Groups[1].Value == "totalPlayers" ? totalPlayers.ToString() : ""));
+    }
+
+    public static string FormatRecordSeparator(string formattedInfo, bool show, string color)
+    {
+        string trimmed = formattedInfo.TrimStart();
+        if (!trimmed.StartsWith("||", StringComparison.Ordinal)) return formattedInfo;
+        string content = trimmed[2..];
+        return show
+            ? $"<font color='{Attribute(color)}'>||</font>{content}"
+            : content.TrimStart();
     }
 
     public string FontAttributes(string key, string fallbackClass)
@@ -123,6 +145,7 @@ internal sealed class HudColors
     public string Style { get; set; } = "#FFFFFF";
     public string ServerRecord { get; set; } = "#FFCC66";
     public string ServerRecordTime { get; set; } = "#FFCC66";
+    public string RecordSeparator { get; set; } = "#FFFFFF";
 
     public string? For(string key) => key switch
     {
@@ -142,13 +165,14 @@ internal sealed class HudFontClasses
     public string Value { get; set; } = "fontSize-l horizontal-center";
     public string ReplayValue { get; set; } = "";
     public string Info { get; set; } = "fontSize-s stratum-bold-italic";
+    public string Sync { get; set; } = "fontSize-l horizontal-center";
     public string Keys { get; set; } = "fontSize-ml stratum-light-mono";
     public string Replay { get; set; } = "horizontal-center";
     public string ServerRecordTime { get; set; } = "";
     public string For(string key, string fallback) => key switch
     {
         "Label" => Label, "Value" => Value, "ReplayValue" => ReplayValue,
-        "Info" => Info, "Keys" => Keys, "Replay" => Replay,
+        "Info" => Info, "Sync" or "sync" => Sync, "Keys" => Keys, "Replay" => Replay,
         "serverRecordTime" => ServerRecordTime, _ => fallback
     };
 }
@@ -204,7 +228,7 @@ internal sealed class HudTexts
     public string Style { get; set; } = "{style}";
     public string ServerRecord { get; set; } = "{serverRecord}";
     public string ServerRecordTime { get; set; } = "SR time: {serverRecordTime}";
-    public string NoRecord { get; set; } = "无记录";
+    public string NoRecord { get; set; } = "无排名({totalPlayers})";
     public string Bonus { get; set; } = "{bonus}";
     public string Keys { get; set; } = "{left} {forward} {right} {back} {jump} {duck}";
     public string Progress { get; set; } = "{progress}";
@@ -220,13 +244,13 @@ internal sealed class HudTexts
         "replay" => ReplayTime, "timer" => TimerValue, "bonusTimer" => BonusTimerValue,
         "speed" => Speed, "preSpeed" => PreSpeed, "sync" => Sync, "placement" => Placement,
         "stage" => Stage, "info" => Info, "mapInfo" => MapInfo, "mode" => Mode, "style" => Style,
-        "recordPlacement" => RecordPlacement,
+        "recordPlacement" => RecordPlacement, "noRecord" => NoRecord,
         "bonus" => Bonus, "serverRecord" => ServerRecord, "serverRecordTime" => ServerRecordTime, "keys" => Keys, "progress" => Progress, _ => ""
     };
 
     public void Validate()
     {
-        string[] known = ["time", "speed", "preSpeed", "sync", "placement", "recordPlacement", "stage", "info", "mapInfo", "mode", "style", "bonus", "serverRecord", "serverRecordTime", "keys", "progress", "left", "forward", "right", "back", "jump", "duck"];
+        string[] known = ["time", "speed", "preSpeed", "sync", "placement", "recordPlacement", "stage", "info", "mapInfo", "mode", "style", "bonus", "serverRecord", "serverRecordTime", "totalPlayers", "keys", "progress", "left", "forward", "right", "back", "jump", "duck"];
         foreach (var property in GetType().GetProperties().Where(property => property.PropertyType == typeof(string)))
         {
             string template = (string?)property.GetValue(this) ?? throw new JsonException($"Text template {property.Name} cannot be null.");

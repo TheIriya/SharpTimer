@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/Features/HudAppearance.cs" Link="HudAppearance.cs" />
+    <Compile Include="../../src/Features/HudSpeedMetrics.cs" Link="HudSpeedMetrics.cs" />
     <None Include="../../cfg/SharpTimer/example.*hud.json" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

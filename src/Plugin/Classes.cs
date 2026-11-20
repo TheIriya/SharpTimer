@@ -283,6 +283,7 @@ namespace SharpTimer
     public class PlayerReplays
     {
         internal ReplayCameraContinuity CameraContinuity { get; } = new();
+        internal ReplayHudMetrics HudMetrics { get; } = new();
         internal PlayerButtons? LastPlaybackButtons { get; set; }
         public int CurrentPlaybackFrame { get; set; }
         public int BonusX { get; set; }

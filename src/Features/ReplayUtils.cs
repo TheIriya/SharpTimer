@@ -68,13 +68,16 @@ namespace SharpTimer
                 if (playerTimers.TryGetValue(player.Slot, out PlayerTimerInfo? value))
                 {
                     var replayFrame = playerReplays[player.Slot].replayFrames[plackbackTick];
+                    var replayState = playerReplays[player.Slot];
+                    if (plackbackTick == 0) replayState.HudMetrics.Reset();
                     var pawn = player.PlayerPawn.Value;
                     if (pawn == null || pawn.MovementServices == null) return;
 
-                    // Recorded positions drive playback. Observer movement changes the
-                    // camera rules, and walking lets physics move the pawn between frames.
-                    if (pawn.MoveType != MoveType_t.MOVETYPE_NONE || pawn.ActualMoveType != MoveType_t.MOVETYPE_NONE)
-                        SetMoveType(player, MoveType_t.MOVETYPE_NONE);
+                    // Replay bots need walk movement enabled for their locomotion
+                    // animation graph; recorded transforms still drive their path.
+                    var replayMoveType = player.IsBot ? MoveType_t.MOVETYPE_WALK : MoveType_t.MOVETYPE_NONE;
+                    if (pawn.MoveType != replayMoveType || pawn.ActualMoveType != replayMoveType)
+                        SetMoveType(player, replayMoveType);
                     value.MovementService = new CCSPlayer_MovementServices(pawn.MovementServices.Handle);
                     bool ducked = ((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_DUCKING) != 0;
                     SetReplayPosture(pawn, value.MovementService, ducked);
@@ -101,7 +104,11 @@ namespace SharpTimer
                     }
 
                     // Observers read the buttons from the frame actually applied to the pawn.
-                    playerReplays[player.Slot].LastPlaybackButtons = replayFrame.Buttons;
+                    replayState.LastPlaybackButtons = replayFrame.Buttons;
+                    var playbackSpeed = replayFrame.Speed!;
+                    replayState.HudMetrics.RecordFrame(
+                        new(playbackSpeed.X, playbackSpeed.Y, playbackSpeed.Z),
+                        ((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_ONGROUND) != 0);
                     // GetHudContent renders playback keys using replay_hud.json for
                     // both the replaying player and spectators.
                 }
