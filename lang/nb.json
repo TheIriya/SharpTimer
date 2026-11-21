@@ -34,6 +34,7 @@
   "stages_unavalible_respawnpos": "{lightred}Ingen RespawnStagePos med indeks {0} funnet for gjeldende kartet!",
   "stages_enter_valid": "Tast inn et gyldig stadium, for eksempel: {lime}!stage <index>",
   "map_no_stages": "{lightred}Gjeldende kartet har ingen stadium!",
+  "entering_stage": "Går inn i stadium: {0}",
 
   // Rank
   "current_rank": "Du er for tiden {0}{1}{lime}",
@@ -85,6 +86,8 @@
 
   // Checkpoints
   "checkpoint_set": "{0} satt! {lime}#{1}",
+  "checkpoint_number": "Kontrollpunkt: {0}",
+  "bonus_checkpoint_number": "Bonus-kontrollpunkt: {0}",
   "no_checkpoint_set": "Ingen {0} satt!",
   "cant_use_checkpoint": "{lightred}Kan ikke bruke {0} mens tidtaker er på, bruk {default}!timer",
   "cant_use_checkpoint_in_air": "{lightred}Kan ikke bruke {0} Mens i lufta",

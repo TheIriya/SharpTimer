@@ -44,9 +44,51 @@ namespace SharpTimer
 
         private void OpenFakeZonesMenu(CCSPlayerController player)
         {
-            Utils.PrintToChat(player!, "[区域工具] 起终点默认脚下；!s 开枪 / !d 脚下，重生点始终取脚下。按原菜单确认各点；!9 清空未保存点位并退出。");
+            Utils.PrintToChat(player!, "[区域工具] 确认第一点后可用 .h <高度> 预设第二点高度，随后仍用原菜单确认；!s 开枪 / !d 脚下，重生点取脚下。");
             var zonesmenu = ZoneToolMenu.Create(AddStartZoneCommand, AddEndZoneCommand, AddRespawnPosCommand, SaveZonesCommand);
             MenuManager.OpenChatMenu(player!, zonesmenu);
+        }
+
+        [ConsoleCommand("css_bounszone", "Bonus zone editing menu")]
+        [RequiresPermissions("@css/cheats")]
+        [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
+        public void BonusZonesMenu(CCSPlayerController? player, CommandInfo command)
+        {
+            if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
+
+            int bonusIndex;
+            if (string.IsNullOrWhiteSpace(command.ArgString))
+            {
+                bonusIndex = FindNextBonusZoneIndex();
+                if (bonusIndex == 0)
+                {
+                    Utils.PrintToChat(player!, "[奖励区域工具] 所有奖励关编号都已占用，请用 !bounszone <1-10> 选择要编辑的编号。");
+                    return;
+                }
+            }
+            else if (!int.TryParse(command.ArgString, out bonusIndex) || bonusIndex < 1 || bonusIndex >= totalBonuses.Length)
+            {
+                Utils.PrintToChat(player!, "[奖励区域工具] 用法：!bounszone [编号]，编号范围为 1-10。");
+                return;
+            }
+
+            OpenBonusZonesMenu(player!, bonusIndex);
+        }
+
+        private int FindNextBonusZoneIndex()
+        {
+            for (int index = 1; index < totalBonuses.Length; index++)
+                if (totalBonuses[index] == 0) return index;
+            return 0;
+        }
+
+        private void OpenBonusZonesMenu(CCSPlayerController player, int bonusIndex)
+        {
+            Utils.PrintToChat(player,
+                $"[奖励区域工具] 当前编号：{bonusIndex}。!1 起点，!2 终点，!3 重生点，!4 保存。第二点可先用 .h <高度> 设高，再按原菜单确认。");
+            var zonesmenu = ZoneToolMenu.Create(AddBonusStartZone, AddBonusEndZone, AddBonusRespawnPos,
+                menuPlayer => SaveBonusZones(menuPlayer, bonusIndex));
+            MenuManager.OpenChatMenu(player, zonesmenu);
         }
 
         public void AddStartZoneCommand(CCSPlayerController? player)
@@ -56,10 +98,12 @@ namespace SharpTimer
 
             if (playerTimers[player!.Slot].IsAddingStartZone == true)
             {
-                FinishZoneToolRegion(playerTimers[player!.Slot]);
+                if (!TryApplyPendingZoneToolHeight(player!, playerTimers[player.Slot], ZoneToolRegionKind.Start,
+                        positionString, out string secondCorner)) return;
                 playerTimers[player.Slot].IsAddingStartZone = false;
                 playerTimers[player.Slot].IsAddingEndZone = false;
-                playerTimers[player.Slot].StartZoneC2 = positionString;
+                playerTimers[player.Slot].StartZoneC2 = secondCorner;
+                CompleteZoneToolRegion(playerTimers[player.Slot]);
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Grey}Startzone set...");
             }
             else
@@ -71,7 +115,7 @@ namespace SharpTimer
                 timer.IsAddingStartZone = true;
                 timer.IsAddingEndZone = false;
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}Please go to the opposite zone corner now");
-                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!1 {ChatColors.Default}again (or switch input with !s / !d)");
+                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!1 {ChatColors.Default}again to confirm; optionally set height first with {primaryChatColor}.h <height>");
             }
         }
 
@@ -82,10 +126,12 @@ namespace SharpTimer
 
             if (playerTimers[player!.Slot].IsAddingEndZone == true)
             {
-                FinishZoneToolRegion(playerTimers[player!.Slot]);
+                if (!TryApplyPendingZoneToolHeight(player!, playerTimers[player.Slot], ZoneToolRegionKind.End,
+                        positionString, out string secondCorner)) return;
                 playerTimers[player.Slot].IsAddingStartZone = false;
                 playerTimers[player.Slot].IsAddingEndZone = false;
-                playerTimers[player.Slot].EndZoneC2 = positionString;
+                playerTimers[player.Slot].EndZoneC2 = secondCorner;
+                CompleteZoneToolRegion(playerTimers[player.Slot]);
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Grey}Endzone set...");
             }
             else
@@ -97,7 +143,7 @@ namespace SharpTimer
                 timer.IsAddingStartZone = false;
                 timer.IsAddingEndZone = true;
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}Please go to the opposite zone corner now");
-                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!2 {ChatColors.Default}again (or switch input with !s / !d)");
+                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!2 {ChatColors.Default}again to confirm; optionally set height first with {primaryChatColor}.h <height>");
             }
         }
 
@@ -147,16 +193,22 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void AddBonusStartZoneCommand(CCSPlayerController? player, CommandInfo command)
         {
-            if (!IsEnabled) return;
-            if (!IsAllowedPlayer(player)) return;
+            AddBonusStartZone(player);
+        }
+
+        private void AddBonusStartZone(CCSPlayerController? player)
+        {
+            if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
             if (!TryGetZoneToolPoint(player!, out string positionString)) return;
 
             if (playerTimers[player!.Slot].IsAddingBonusStartZone == true)
             {
-                FinishZoneToolRegion(playerTimers[player!.Slot]);
+                if (!TryApplyPendingZoneToolHeight(player!, playerTimers[player.Slot], ZoneToolRegionKind.BonusStart,
+                        positionString, out string secondCorner)) return;
                 playerTimers[player.Slot].IsAddingBonusStartZone = false;
                 playerTimers[player.Slot].IsAddingBonusEndZone = false;
-                playerTimers[player.Slot].BonusStartZoneC2 = positionString;
+                playerTimers[player.Slot].BonusStartZoneC2 = secondCorner;
+                CompleteZoneToolRegion(playerTimers[player.Slot]);
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Grey}Bonus Startzone set...");
             }
             else
@@ -168,7 +220,7 @@ namespace SharpTimer
                 timer.IsAddingBonusStartZone = true;
                 timer.IsAddingBonusEndZone = false;
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}Please go to the opposite zone corner now");
-                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!addbonusstartzone {ChatColors.Default}again (or switch input with !s / !d)");
+                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!addbonusstartzone {ChatColors.Default}again to confirm; optionally set height first with {primaryChatColor}.h <height>");
             }
         }
 
@@ -177,16 +229,22 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void AddBonusEndZoneCommand(CCSPlayerController? player, CommandInfo command)
         {
-            if (!IsEnabled) return;
-            if (!IsAllowedPlayer(player)) return;
+            AddBonusEndZone(player);
+        }
+
+        private void AddBonusEndZone(CCSPlayerController? player)
+        {
+            if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
             if (!TryGetZoneToolPoint(player!, out string positionString)) return;
 
             if (playerTimers[player!.Slot].IsAddingBonusEndZone == true)
             {
-                FinishZoneToolRegion(playerTimers[player!.Slot]);
+                if (!TryApplyPendingZoneToolHeight(player!, playerTimers[player.Slot], ZoneToolRegionKind.BonusEnd,
+                        positionString, out string secondCorner)) return;
                 playerTimers[player.Slot].IsAddingBonusStartZone = false;
                 playerTimers[player.Slot].IsAddingBonusEndZone = false;
-                playerTimers[player.Slot].BonusEndZoneC2 = positionString;
+                playerTimers[player.Slot].BonusEndZoneC2 = secondCorner;
+                CompleteZoneToolRegion(playerTimers[player!.Slot]);
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Grey}Bonus Endzone set...");
             }
             else
@@ -198,7 +256,7 @@ namespace SharpTimer
                 timer.IsAddingBonusStartZone = false;
                 timer.IsAddingBonusEndZone = true;
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}Please go to the opposite zone corner now");
-                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!addbonusendzone {ChatColors.Default}again (or switch input with !s / !d)");
+                Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Default}and type {primaryChatColor}!addbonusendzone {ChatColors.Default}again to confirm; optionally set height first with {primaryChatColor}.h <height>");
             }
         }
 
@@ -207,8 +265,12 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void AddBonusRespawnPosCommand(CCSPlayerController? player, CommandInfo command)
         {
-            if (!IsEnabled) return;
-            if (!IsAllowedPlayer(player)) return;
+            AddBonusRespawnPos(player);
+        }
+
+        private void AddBonusRespawnPos(CCSPlayerController? player)
+        {
+            if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
             if (!TryGetZoneToolFeetPoint(player!, out string positionString)) return;
             BeginZoneToolInput(playerTimers[player!.Slot]);
 
@@ -221,19 +283,29 @@ namespace SharpTimer
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void SaveBonusZonesCommand(CCSPlayerController? player, CommandInfo command)
         {
-            if (!IsEnabled) return;
-            if (!IsAllowedPlayer(player)) return;
+            if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
+            if (!int.TryParse(command.ArgString, out int bonusX))
+            {
+                Utils.LogDebug("SaveBonusZones failed, not vaild integer.");
+                Utils.PrintToChat(player!, $"Please enter a valid Bonus stage i.e: {primaryChatColor}!savebonuszones <index>");
+                return;
+            }
+
+            SaveBonusZones(player, bonusX);
+        }
+
+        private void SaveBonusZones(CCSPlayerController? player, int bonusX)
+        {
+            if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
+            if (bonusX < 1 || bonusX >= totalBonuses.Length)
+            {
+                Utils.PrintToChat(player!, $"[奖励区域工具] 编号范围为 1-{totalBonuses.Length - 1}。");
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(playerTimers[player!.Slot].BonusEndZoneC1) || string.IsNullOrWhiteSpace(playerTimers[player.Slot].BonusEndZoneC2) || string.IsNullOrWhiteSpace(playerTimers[player.Slot].BonusStartZoneC1) || string.IsNullOrWhiteSpace(playerTimers[player.Slot].BonusStartZoneC2) || string.IsNullOrWhiteSpace(playerTimers[player.Slot].BonusRespawnPos))
             {
                 Utils.PrintToChat(player, $" {ChatColors.LightPurple}[ZONE TOOL] {ChatColors.Red}Please make sure you have done all 3 zoning steps (!addbonusstartzone, !addbonusendzone, !addbonusrespawnpos)");
-                return;
-            }
-
-            if (!int.TryParse(command.ArgString, out int bonusX))
-            {
-                Utils.LogDebug("SaveBonusZones failed, not vaild integer.");
-                Utils.PrintToChat(player, $"Please enter a valid Bonus stage i.e: {primaryChatColor}!savebonuszones <index>");
                 return;
             }
 
@@ -285,25 +357,22 @@ namespace SharpTimer
                         _ => null
                     };
                     if (selectedPosition == null) return;
+                    Vector_t previewPosition = ApplyPendingZoneToolHeightPreview(playerTimer, selectedPosition.Value);
                     if (playerTimer.IsAddingStartZone)
                     {
-                        Vector_t pawnPosition = selectedPosition.Value;
-                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.StartZoneC1!), pawnPosition, player.Slot);
+                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.StartZoneC1!), previewPosition, player.Slot);
                     }
                     else if (playerTimer.IsAddingEndZone)
                     {
-                        Vector_t pawnPosition = selectedPosition.Value;
-                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.EndZoneC1!), pawnPosition, player.Slot);
+                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.EndZoneC1!), previewPosition, player.Slot);
                     }
                     else if (playerTimer.IsAddingBonusStartZone)
                     {
-                        Vector_t pawnPosition = selectedPosition.Value;
-                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.BonusStartZoneC1!), pawnPosition, player.Slot);
+                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.BonusStartZoneC1!), previewPosition, player.Slot);
                     }
                     else if (playerTimer.IsAddingBonusEndZone)
                     {
-                        Vector_t pawnPosition = selectedPosition.Value;
-                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.BonusEndZoneC1!), pawnPosition, player.Slot);
+                        DrawZoneToolWireframe(Utils.ParseVector_t(playerTimer.BonusEndZoneC1!), previewPosition, player.Slot);
                     }
                 }
             }

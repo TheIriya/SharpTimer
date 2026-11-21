@@ -34,6 +34,7 @@
     "stages_unavalible_respawnpos": "{lightred}Ei löytynyt RespawnStagePos paikkaa indeksillä {0} tämänhetkiselle kentälle!",
     "stages_enter_valid": "Syötä kelvollinen taso, esim:: {lime}!stage <indeksi>",
     "map_no_stages": "{lightred}Kentällä ei ole yhtään tasoa!",
+    "entering_stage": "Siirrytään vaiheeseen: {0}",
 
     // Rank
     "current_rank": "Sijoituksesi on nyt {0}{1}{lime}",
@@ -82,6 +83,8 @@
 
     // Checkpoints
     "checkpoint_set": "{0}asetettu! {lime}#{1}",
+    "checkpoint_number": "Tarkistuspiste: {0}",
+    "bonus_checkpoint_number": "Bonuksen tarkistuspiste: {0}",
     "no_checkpoint_set": "Ei {0} asetettu!",
     "cant_use_checkpoint": "{lightred}Ei voi käyttää {0} kun ajastin on päällä, käytä {default}!timer komentoa",
     "cant_use_checkpoint_in_air": "{lightred}Et voi asettaa {0} ollessasi ilmassa",

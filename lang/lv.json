@@ -32,6 +32,7 @@
   "stages_unavalible_respawnpos": "{lightred}Nav RespawnStagePos ar indeksu {0} šai kartei!",
   "stages_enter_valid": "Lūdzu ievadi derīgu posmu, piem.: {lime}!stage <indekss>",
   "map_no_stages": "{lightred}Šai kartei nav posmu!",
+  "entering_stage": "Ieeja posmā: {0}",
 
   //rank
   "current_rank": "Tavs pašreizējais ranks ir {0}{1}{lime}",
@@ -85,6 +86,8 @@
 
   //checkpoints
   "checkpoint_set": "{0} iestatīts! {lime}#{1}",
+  "checkpoint_number": "Kontrolpunkts: {0}",
+  "bonus_checkpoint_number": "Bonusa kontrolpunkts: {0}",
   "no_checkpoint_set": "Nav iestatīts neviens {0}!",
   "cant_use_checkpoint": "{lightred}Nevar izmantot {0} kamēr taimeris ir ieslēgts, izmanto {default}!timer",
   "cant_use_checkpoint_in_air": "{lightred}Nevar iestatīt {0} esot gaisā",

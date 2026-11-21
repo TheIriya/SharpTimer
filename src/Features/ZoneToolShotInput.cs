@@ -19,6 +19,14 @@ internal sealed class ZoneToolPendingRegion
     public ZoneToolRegionKind Region { get; }
     public string? PreviousFirstCorner { get; }
     public string? PreviousSecondCorner { get; }
+    public float? SecondCornerHeight { get; private set; }
+
+    public bool SetSecondCornerHeight(float height)
+    {
+        if (_completed || !float.IsFinite(height) || height <= 0) return false;
+        SecondCornerHeight = height;
+        return true;
+    }
 
     public bool TryRestorePrevious(out string? firstCorner, out string? secondCorner)
     {
@@ -30,7 +38,7 @@ internal sealed class ZoneToolPendingRegion
     public void Complete() => _completed = true;
 }
 
-// Shooting only updates a candidate. Menu commands alone confirm points.
+// Shooting only updates a candidate. Menu commands confirm points, while the height command sets a pending height.
 internal sealed class ZoneToolShotInput
 {
     public ZoneToolSelectionMode Mode { get; private set; } = ZoneToolSelectionMode.Feet;

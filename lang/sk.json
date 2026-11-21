@@ -34,6 +34,7 @@
   "stages_unavalible_respawnpos": "{lightred}Pre aktuálnu mapu sa nenašlo žiadne RespawnStagePos s indexom {0}!",
   "stages_enter_valid": "Zadajte platnú fázu, napr.: {lime}!stage <index>",
   "map_no_stages": "{lightred}Aktuálna mapa nemá žiadne fázy!",
+  "entering_stage": "Vstup do fázy: {0}",
 
   //rank
   "current_rank": "Momentálne ste {0}{1}{lime}",
@@ -82,6 +83,8 @@
 
   //checkpoints
   "checkpoint_set": "{0} nastavené! {lime}#{1}",
+  "checkpoint_number": "Kontrolný bod: {0}",
+  "bonus_checkpoint_number": "Bonusový kontrolný bod: {0}",
   "no_checkpoint_set": "Nič {0} nenastavené!",
   "cant_use_checkpoint": "{lightred}Keď je časovač zapnutý, nemožno použiť {0}, použite {default}!timer",
   "cant_use_checkpoint_in_air": "{lightred}Vo vzduchu nie je možné nastaviť {0}",

@@ -87,11 +87,13 @@ Check(other.Mode == ZoneToolSelectionMode.Feet && other.Candidate == null && oth
     "Players have independent methods and candidates");
 Check(input.TryConfirm(feet, out var ownPoint) && ownPoint == hit, "Other players cannot consume this candidate");
 var pendingRegion = new ZoneToolPendingRegion(ZoneToolRegionKind.End, "old-end-first", "old-end-second");
-Check(pendingRegion.TryRestorePrevious(out var oldFirst, out var oldSecond) &&
+Check(pendingRegion.SetSecondCornerHeight(20) && pendingRegion.SecondCornerHeight == 20 &&
+      pendingRegion.TryRestorePrevious(out var oldFirst, out var oldSecond) &&
       oldFirst == "old-end-first" && oldSecond == "old-end-second",
-    "Cancelling a replacement edit restores the previously completed region");
+    "Setting a pending height leaves the region active for menu confirmation");
 pendingRegion.Complete();
-Check(!pendingRegion.TryRestorePrevious(out _, out _), "Completing a region commits it instead of restoring the older points later");
+Check(!pendingRegion.TryRestorePrevious(out _, out _) && !pendingRegion.SetSecondCornerHeight(30),
+    "Completing a region commits it instead of restoring or changing its pending height later");
 input.SelectMode(ZoneToolSelectionMode.Shoot);
 input.Arm(220);
 Check(input.Capture(hit, 220), "A candidate exists before cancellation");
@@ -133,4 +135,15 @@ foreach (int key in new[] { 1, 1, 2, 2, 3 })
 SelectMenuKey(4);
 Check(selected.SequenceEqual(new[] { "start", "start", "end", "end", "respawn", "save" }),
     "The original !1 !1 !2 !2 !3 !4 sequence routes every step to its handler");
+Check(ZoneToolHeight.TrySetSecondCornerHeight("10 20 30", "40 50 999", 128, out var adjustedCorner) &&
+      adjustedCorner == "40 50 158",
+    "Height confirmation keeps the selected second corner X/Y and measures Z from the first corner");
+Check(ZoneToolHeight.TrySetSecondCornerHeight("10.5 -20 30.25", "40.5 50.25 60", 12.5f, out adjustedCorner) &&
+      adjustedCorner == "40.5 50.25 42.75",
+    "Height confirmation supports fractional coordinates using invariant formatting");
+Check(!ZoneToolHeight.TrySetSecondCornerHeight("10 20 30", "40 50", 12, out _) &&
+      !ZoneToolHeight.TrySetSecondCornerHeight("10 20 NaN", "40 50 60", 12, out _) &&
+      !ZoneToolHeight.TrySetSecondCornerHeight("10 20 30", "40 50 60", 0, out _) &&
+      !ZoneToolHeight.TrySetSecondCornerHeight("10 20 30", "40 50 60", float.PositiveInfinity, out _),
+    "Height adjustment rejects incomplete, non-finite and non-positive inputs");
 Console.WriteLine($"Passed {checks} zone input and menu mapping checks.");

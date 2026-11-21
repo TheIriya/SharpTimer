@@ -205,7 +205,7 @@ namespace SharpTimer
                             
                             if (previousStageTime != 0)
                             {
-                                Utils.PrintToSpec(player, $"Entering Stage: {stageTrigger}");
+                                Utils.PrintToSpec(player, Localizer["entering_stage", stageTrigger]);
                                 Utils.PrintToSpec(player, $"Time: {ChatColors.White}[{primaryChatColor}{formattedStageTicks}{ChatColors.White}] " +
                                                                 $" [{Utils.FormatTimeDifference(playerStageTicks, previousStageTime)}{ChatColors.White}]" +
                                                                 $" {(previousStageTime != srStageTime && enableStageSR ? $"[SR {Utils.FormatTimeDifference(playerStageTicks, srStageTime)}{ChatColors.White}]" : "")}");
@@ -217,7 +217,7 @@ namespace SharpTimer
 
                                 if (!playerTimers[slot].HideChatSpeed)
                                 {
-                                    Utils.PrintToChat(player, $"Entering Stage: {stageTrigger}");
+                                    Utils.PrintToChat(player, Localizer["entering_stage", stageTrigger]);
                                     Utils.PrintToChat(player, $"Time: {ChatColors.White}[{primaryChatColor}{formattedStageTicks}{ChatColors.White}] " +
                                                                     $" [{Utils.FormatTimeDifference(playerStageTicks, previousStageTime)}{ChatColors.White}]" +
                                                                     $" {(previousStageTime != srStageTime && enableStageSR ? $"[SR {Utils.FormatTimeDifference(playerStageTicks, srStageTime)}{ChatColors.White}]" : "")}");
@@ -301,7 +301,7 @@ namespace SharpTimer
                             //TO-DO: Add player setting to enabled/disable printing time comparisons to chat
                             if (previousStageTime != 0)
                             {
-                                Utils.PrintToSpec(player, $"Checkpoint: {playerTimer.CurrentMapCheckpoint}");
+                                Utils.PrintToSpec(player, Localizer["checkpoint_number", playerTimer.CurrentMapCheckpoint]);
                                 Utils.PrintToSpec(player, $"Time: {ChatColors.White}[{primaryChatColor}{Utils.FormatTime(playerTimerTicks)}{ChatColors.White}] " +
                                                                $" [{Utils.FormatTimeDifference(playerTimerTicks, previousStageTime)}{ChatColors.White}]" +
                                                                $" {(previousStageTime != srStageTime ? $"[SR {Utils.FormatTimeDifference(playerTimerTicks, srStageTime)}{ChatColors.White}]" : "")}");
@@ -313,7 +313,7 @@ namespace SharpTimer
 
                                 if (!playerTimers[slot].HideChatSpeed)
                                 {
-                                    Utils.PrintToChat(player, $"Checkpoint: {playerTimer.CurrentMapCheckpoint}");
+                                    Utils.PrintToChat(player, Localizer["checkpoint_number", playerTimer.CurrentMapCheckpoint]);
                                     Utils.PrintToChat(player, $"Time: {ChatColors.White}[{primaryChatColor}{Utils.FormatTime(playerTimerTicks)}{ChatColors.White}] " +
                                                                 $" [{Utils.FormatTimeDifference(playerTimerTicks, previousStageTime)}{ChatColors.White}]" +
                                                                 $" {(previousStageTime != srStageTime ? $"[SR {Utils.FormatTimeDifference(playerTimerTicks, srStageTime)}{ChatColors.White}]" : "")}");
@@ -406,7 +406,7 @@ namespace SharpTimer
                             //TO-DO: Add player setting to enabled/disable printing time comparisons to chat
                             if (previousStageTime != 0)
                             {
-                                Utils.PrintToSpec(player, $"Bonus Checkpoint: {bonusCheckpointTrigger}");
+                                Utils.PrintToSpec(player, Localizer["bonus_checkpoint_number", bonusCheckpointTrigger]);
                                 Utils.PrintToSpec(player, $"Time: {ChatColors.White}[{primaryChatColor}{Utils.FormatTime(playerTimerTicks)}{ChatColors.White}] " +
                                                                $" [{Utils.FormatTimeDifference(playerTimerTicks, previousStageTime)}{ChatColors.White}]" +
                                                                $" {(previousStageTime != srStageTime ? $"[SR {Utils.FormatTimeDifference(playerTimerTicks, srStageTime)}{ChatColors.White}]" : "")}");
@@ -418,7 +418,7 @@ namespace SharpTimer
 
                                 if (!playerTimers[slot].HideChatSpeed)
                                 {
-                                    Utils.PrintToChat(player, $"Bonus Checkpoint: {bonusCheckpointTrigger}");
+                                    Utils.PrintToChat(player, Localizer["bonus_checkpoint_number", bonusCheckpointTrigger]);
                                     Utils.PrintToChat(player, $"Time: {ChatColors.White}[{primaryChatColor}{Utils.FormatTime(playerTimerTicks)}{ChatColors.White}] " +
                                                                    $" [{Utils.FormatTimeDifference(playerTimerTicks, previousStageTime)}{ChatColors.White}]" +
                                                                    $" {(previousStageTime != srStageTime ? $"[SR {Utils.FormatTimeDifference(playerTimerTicks, srStageTime)}{ChatColors.White}]" : "")}");

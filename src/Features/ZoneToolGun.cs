@@ -5,6 +5,7 @@ using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Menu;
 using FixVectorLeak;
+using System.Globalization;
 using System.Numerics;
 
 namespace SharpTimer;
@@ -55,6 +56,71 @@ public partial class SharpTimer
         MenuManager.CloseActiveMenu(player!);
     }
 
+    [ConsoleCommand("css_h", "Set the height for a zone's pending second corner")]
+    [RequiresPermissions("@css/cheats")]
+    [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
+    public void ZoneToolHeightCommand(CCSPlayerController? player, CommandInfo command)
+    {
+        if (!IsEnabled || !IsAllowedPlayer(player) || !AdminManager.PlayerHasPermissions(player!, "@css/cheats")) return;
+
+        if (!float.TryParse(command.ArgString, NumberStyles.Float, CultureInfo.InvariantCulture, out float height) ||
+            !float.IsFinite(height) || height <= 0)
+        {
+            Utils.PrintToChat(player!, "[区域工具] 用法：.h <高度>，请输入大于 0 的有效数字。高度单位为游戏坐标单位。");
+            return;
+        }
+
+        var timer = playerTimers[player!.Slot];
+        if (timer.PendingZoneToolRegion is not { } pending)
+        {
+            Utils.PrintToChat(player!, "[区域工具] 请先用 !1 / !2 选择区域第一个点。");
+            return;
+        }
+
+        if (!ZoneToolHeight.TryGetSecondCornerZ(GetZoneToolFirstCorner(timer, pending.Region), height, out _))
+        {
+            Utils.PrintToChat(player!, "[区域工具] 第一点坐标无效，无法设置高度。");
+            return;
+        }
+
+        if (!pending.SetSecondCornerHeight(height)) return;
+        Utils.PrintToChat(player!, $"[区域工具] 第二点高度已设为 {height.ToString(CultureInfo.InvariantCulture)}；请按 !1 / !2 确认第二点。");
+    }
+
+    private static string? GetZoneToolFirstCorner(PlayerTimerInfo timer, ZoneToolRegionKind region) => region switch
+    {
+        ZoneToolRegionKind.Start => timer.StartZoneC1,
+        ZoneToolRegionKind.End => timer.EndZoneC1,
+        ZoneToolRegionKind.BonusStart => timer.BonusStartZoneC1,
+        ZoneToolRegionKind.BonusEnd => timer.BonusEndZoneC1,
+        _ => null
+    };
+
+    private bool TryApplyPendingZoneToolHeight(CCSPlayerController player, PlayerTimerInfo timer,
+        ZoneToolRegionKind region, string selectedSecondCorner, out string secondCorner)
+    {
+        secondCorner = selectedSecondCorner;
+        if (timer.PendingZoneToolRegion is not { } pending || pending.Region != region ||
+            pending.SecondCornerHeight is not { } height)
+            return true;
+
+        if (ZoneToolHeight.TrySetSecondCornerHeight(GetZoneToolFirstCorner(timer, region), selectedSecondCorner,
+                height, out secondCorner))
+            return true;
+
+        Utils.PrintToChat(player, "[区域工具] 点位无效，无法设置第二点高度；高度设置仍保留，请重试。");
+        return false;
+    }
+
+    private Vector_t ApplyPendingZoneToolHeightPreview(PlayerTimerInfo timer, Vector_t selectedPosition)
+    {
+        if (timer.PendingZoneToolRegion is not { SecondCornerHeight: { } height } pending ||
+            !ZoneToolHeight.TryGetSecondCornerZ(GetZoneToolFirstCorner(timer, pending.Region), height, out float z))
+            return selectedPosition;
+
+        return new Vector_t(selectedPosition.X, selectedPosition.Y, z);
+    }
+
     private static void ClearAllZoneToolPoints(PlayerTimerInfo timer)
     {
         timer.StartZoneC1 = timer.StartZoneC2 = null;
@@ -74,8 +140,8 @@ public partial class SharpTimer
         timer.ZoneToolGun.SelectMode(mode);
         ClearZoneToolPreview(timer);
         Utils.PrintToChat(player, mode == ZoneToolSelectionMode.Shoot
-            ? "[区域工具] 已切换开枪选角点：起点、终点沿用该模式直到保存；重生点始终使用脚下。先开枪定位，再用原菜单确认；!d 切回脚下。"
-            : "[区域工具] 已切换脚下选角点：起点、终点沿用该模式直到保存；重生点始终使用脚下。用原菜单确认；!s 切换开枪。");
+            ? "[区域工具] 已切换开枪选角点：起点、终点沿用该模式直到保存；重生点始终使用脚下。先开枪定位，再用菜单确认；第二点可先用 .h <高度> 设高；!d 切回脚下。"
+            : "[区域工具] 已切换脚下选角点：起点、终点沿用该模式直到保存；重生点始终使用脚下。用菜单确认；第二点可先用 .h <高度> 设高；!s 切换开枪。");
         OpenFakeZonesMenu(player);
     }
 
@@ -105,6 +171,11 @@ public partial class SharpTimer
     {
         CancelZoneToolRegion(timer);
         timer.ZoneToolGun.Reset();
+        FinishZoneToolRegion(timer);
+    }
+
+    private static void CompleteZoneToolRegion(PlayerTimerInfo timer)
+    {
         FinishZoneToolRegion(timer);
     }
 
@@ -155,7 +226,7 @@ public partial class SharpTimer
         var feet = player.Pawn.Value?.CBodyComponent?.SceneNode?.AbsOrigin;
         if (feet == null || !input.TryConfirm(new Vector3(feet.X, feet.Y, feet.Z), out var point))
         {
-            Utils.PrintToChat(player, "[区域工具] 请先开枪选择该点，再按原菜单确认。开枪不会自动进入下一点。");
+            Utils.PrintToChat(player, "[区域工具] 请先开枪选择该点，再用菜单确认。开枪不会自动确认；高度设置后仍需用菜单确认第二点。");
             return false;
         }
         position = FormattableString.Invariant($"{point.X} {point.Y} {point.Z}");

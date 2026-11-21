@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/Features/ZoneToolShotInput.cs" Link="ZoneToolShotInput.cs" />
+    <Compile Include="../../src/Features/ZoneToolHeight.cs" Link="ZoneToolHeight.cs" />
     <Compile Include="../../src/Features/ZoneToolMenu.cs" Link="ZoneToolMenu.cs" />
     <PackageReference Include="CounterStrikeSharp.API" Version="1.0.375" />
   </ItemGroup>

@@ -34,6 +34,7 @@
   "stages_unavalible_respawnpos": "{lightred}Geçerli harita için {0} indeksine sahip RespawnStagePos bulunamadı!",
   "stages_enter_valid": "Lütfen geçerli bir stage girin örneğin: {lime}!stage <index>",
   "map_no_stages": "{lightred}Geçerli haritada stage yok!",
+  "entering_stage": "Aşamaya giriliyor: {0}",
 
   //Sıralama
   "current_rank": "Şu anda rütbesindesiniz: {0}{1}{lime}",
@@ -89,6 +90,8 @@
 
   //kontrol noktaları
   "checkpoint_set": "{0} ayarlandı! {lime}#{1}",
+  "checkpoint_number": "Kontrol noktası: {0}",
+  "bonus_checkpoint_number": "Bonus kontrol noktası: {0}",
   "no_checkpoint_set": "Hiçbir {0} ayarlanmadı!",
   "cant_use_checkpoint": "{lightred}Zamanlayıcı açıkken {0} kullanılamaz, {default}!timer kullanın",
   "cant_use_checkpoint_in_air": "{lightred}Havadayken {0} ayarlanamaz",

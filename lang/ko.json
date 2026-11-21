@@ -35,6 +35,7 @@
   "stages_unavalible_respawnpos": "{lightred}현재 맵에 {0}번의 RespawnStagePos가 없습니다!",
   "stages_enter_valid": "유효한 스테이지를 입력하세요, 예: {lime}!stage <번호>",
   "map_no_stages": "{lightred}현재 맵에 스테이지가 없습니다!",
+  "entering_stage": "스테이지 {0} 진입",
 
   // 랭크
   "current_rank": "현재 랭크는 {0}{1}{lime}입니다",
@@ -92,6 +93,8 @@
 
   // 체크포인트
   "checkpoint_set": "{0} 설정됨! {lime}#{1}",
+  "checkpoint_number": "체크포인트: {0}",
+  "bonus_checkpoint_number": "보너스 체크포인트: {0}",
   "no_checkpoint_set": "{0}이(가) 설정되지 않았습니다!",
   "cant_use_checkpoint": "{lightred}타이머가 켜져 있는 동안 {0}을 사용할 수 없습니다. {default}!timer 명령어를 사용하세요",
   "cant_use_checkpoint_in_air": "{lightred}공중에서 {0}을 설정할 수 없습니다",

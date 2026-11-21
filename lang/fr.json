@@ -34,6 +34,7 @@
   "stages_unavalible_respawnpos": "{lightred}Pas de RespawnStagePos avec l'index {0} trouvé pour la map actuelle !",
   "stages_enter_valid": "Veuillez saisir un numéro stage valide. ex: {lime}!stage <index>",
   "map_no_stages": "{lightred}La map actuelle ne contient aucun stage!",
+  "entering_stage": "Entrée dans le stage : {0}",
 
   //rank
   "current_rank": "Vous êtes actuellement {0}{1}{lime}",
@@ -85,6 +86,8 @@
 
   //checkpoints
   "checkpoint_set": "{0} définit! {lime}#{1}",
+  "checkpoint_number": "Point de contrôle : {0}",
+  "bonus_checkpoint_number": "Point de contrôle bonus : {0}",
   "no_checkpoint_set": "Aucune {0} définit!",
   "cant_use_checkpoint": "{lightred}Impossible d'utiliser {0} lorsque le timer est activée, utilisez {default}!timer",
   "cant_use_checkpoint_in_air": "{lightred}Impossible de définir {0} dans les airs",

@@ -121,7 +121,9 @@ Disabling cancels timers and pending callbacks, stops gameplay hooks, commands, 
 
 ### Zone editing with gunshots
 
-Open the zone tool with `!zone`: `!1` selects the start zone, `!2` the end zone, `!3` the respawn point and `!4` saves. `!fakezones` remains an alias.
+Open the regular zone tool with `!zone`: `!1` selects the start zone, `!2` the end zone, `!3` the respawn point and `!4` saves. `!fakezones` is an alias.
+
+Draw bonus zones with `!bounszone [index]`. Without an index, the first unused bonus index is selected. Passing an index selects that bonus to edit or replace. Its menu uses the same `!1` start, `!2` end, `!3` respawn and `!4` save flow as `!zone`.
 
 Player-position selection is the default and follows your feet for the second corner. Use `!s` before confirming a zone corner to choose it with a gunshot, then use `!d` to return to feet selection. Respawn points always use your current feet position, regardless of the selected corner method. Use `!c` to cancel the active region edit; previously completed points stay intact. `!9` clears all unsaved zone and respawn points, resets the selection method and exits; it does not modify the map file. Use `!zone` to reopen the tool.
 
@@ -129,6 +131,8 @@ Player-position selection is the default and follows your feet for the second co
 - **Gunshots:** use `!s`, shoot to choose a candidate point, then use `!1` to confirm it. Shoot again and use `!1` again for the second corner.
 
 Gunshots update the candidate point and wireframe preview; they do not confirm points automatically. Each zone-corner confirmation consumes its candidate. Use `!2` in the same way for the end zone. `!3` always records your feet position and never needs a shot. Only the first impact from each shot is used, avoiding duplicate selections from penetration or shotguns.
+
+After confirming the first corner of a zone, use `.h <height>` to set the second corner's height. Then confirm the second corner with the usual menu command (`!1` for start, `!2` for end, or the corresponding bonus command). The second corner's Z coordinate becomes the first corner's Z plus the requested height, while its X and Y come from the usual feet or gunshot selection. In shooting mode, shoot to select the second corner before confirming it. This works for start, end, and bonus zones.
 
 The selected corner method remains active across start/end zones until `!4` saves successfully, then resets to player position. Failed saves retain the method. Switching methods preserves confirmed points and clears the unconfirmed shot candidate. Bonus zone corners use the same shooting behavior, while bonus respawn points always use feet. Zone editing is inactive while SharpTimer is disabled.
 

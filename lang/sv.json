@@ -34,6 +34,7 @@
   "stages_unavalible_respawnpos": "{lightred}ingen RespawnStagePos med index {0} hittad för denna karta!",
   "stages_enter_valid": "Ange ett giltigt stage t.ex: {lime}!stage <index>",
   "map_no_stages": "{lightred}Nuvarande karta har inga stages!",
+  "entering_stage": "Går in i stage: {0}",
 
   //rank
   "current_rank": "Du är rank {0}{1}{lime}",
@@ -85,6 +86,8 @@
 
   //checkpoints
   "checkpoint_set": "{0} placerad! {lime}#{1}",
+  "checkpoint_number": "Kontrollpunkt: {0}",
+  "bonus_checkpoint_number": "Bonus-kontrollpunkt: {0}",
   "no_checkpoint_set": "Inga {0} är placerade!",
   "cant_use_checkpoint": "{lightred}Kan inte använda {0} medans timer är på, använd {default}!timer",
   "cant_use_checkpoint_in_air": "{lightred}Kan inte sätta {0} medans du är i luften",
