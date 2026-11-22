@@ -54,7 +54,7 @@ namespace SharpTimer
                 var steamID = player.SteamID.ToString();
                 var callerName = caller.Entity.Name;
 
-                if (caller.Entity.Name.ToString() == "bhop_block" && !playerTimers[player.Slot].IsTimerBlocked)
+                if (caller.Entity.Name.ToString() == "bhop_block" && bhopBlockTime > 0 && !playerTimers[player.Slot].IsTimerBlocked)
                 {
                     playerTimers[player.Slot].IsOnBhopBlock = true;
                     return HookResult.Continue;

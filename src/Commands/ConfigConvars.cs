@@ -1315,20 +1315,22 @@ namespace SharpTimer
             }
         }
 
-        [ConsoleCommand("sharptimer_max_bhop_block_time", "Defines the time the player is allowed to stand on a Bhop block (if the map supports it). Default value: 1")]
+        [ConsoleCommand("sharptimer_max_bhop_block_time", "Defines the time the player is allowed to stand on a Bhop block. Set to 0 to disable. Default value: 1")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerBhopBlockConvar(CCSPlayerController? player, CommandInfo command)
         {
             string args = command.ArgString;
 
-            if (float.TryParse(args, NumberStyles.Any, CultureInfo.InvariantCulture, out float time) && time > 0)
+            if (float.TryParse(args, NumberStyles.Any, CultureInfo.InvariantCulture, out float time) && time >= 0)
             {
                 bhopBlockTime = (int)(time * 64);
-                Utils.LogDebug($"SharpTimer max bhop block time set to {time} seconds.");
+                Utils.LogDebug(time == 0
+                    ? "SharpTimer bhop block respawn disabled."
+                    : $"SharpTimer max bhop block time set to {time} seconds.");
             }
             else
             {
-                Utils.LogError("Invalid max bhop block time value. Please provide a positive float.");
+                Utils.LogError("Invalid max bhop block time value. Please provide a non-negative float.");
             }
         }
 
@@ -1522,20 +1524,22 @@ namespace SharpTimer
             }
         }
 
-        [ConsoleCommand("sharptimer_bhop_block_ticks", "Ticks allowed on bhop_block. Default value: 16")]
+        [ConsoleCommand("sharptimer_bhop_block_ticks", "Ticks allowed on bhop_block. Set to 0 to disable. Default value: 16")]
         [CommandHelper(whoCanExecute: CommandUsage.SERVER_ONLY)]
         public void SharpTimerBhopBlockTicksConvar(CCSPlayerController? player, CommandInfo command)
         {
             string args = command.ArgString;
 
-            if (int.TryParse(args, out int bhopTicks) && bhopTicks > 0)
+            if (int.TryParse(args, out int bhopTicks) && bhopTicks >= 0)
             {
                 bhopBlockTime = bhopTicks;
-                Utils.LogDebug($"SharpTimer forced bhop_block ticks to {bhopTicks}.");
+                Utils.LogDebug(bhopTicks == 0
+                    ? "SharpTimer bhop block respawn disabled."
+                    : $"SharpTimer forced bhop_block ticks to {bhopTicks}.");
             }
             else
             {
-                Utils.LogError("Invalid bhop_block ticks value. Please provide a positive integer.");
+                Utils.LogError("Invalid bhop_block ticks value. Please provide a non-negative integer.");
             }
         }
 

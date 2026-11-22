@@ -203,9 +203,13 @@ namespace SharpTimer
                         }
                         /* modes */
 
-                        // respawn player if on bhop block too long
-                        bool isOnBhopBlock = playerTimer.IsOnBhopBlock;
-                        if (isOnBhopBlock)
+                        // A zero threshold disables the bhop-block respawn and clears any pending timer.
+                        if (bhopBlockTime <= 0)
+                        {
+                            playerTimer.IsOnBhopBlock = false;
+                            playerTimer.TicksOnBhopBlock = 0;
+                        }
+                        else if (playerTimer.IsOnBhopBlock)
                         {
                             playerTimer.TicksOnBhopBlock++;
 
