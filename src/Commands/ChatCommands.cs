@@ -1227,6 +1227,19 @@ namespace SharpTimer
             }
         }
 
+        private HookResult OnSilentRespawnChat(CCSPlayerController? player, CommandInfo command)
+        {
+            if (!IsEnabled || player == null || !player.IsValid || player.IsBot)
+                return HookResult.Continue;
+
+            if (!string.Equals(command.ArgString.Trim().Trim('"').Trim(), "!!r", StringComparison.OrdinalIgnoreCase))
+                return HookResult.Continue;
+
+            // Share !r's cooldown, replay cleanup and respawn behavior, then suppress the chat message.
+            RespawnPlayerCommand(player, command);
+            return HookResult.Handled;
+        }
+
         [ConsoleCommand("css_r", "Teleports you to start")]
         [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
         public void RespawnPlayerCommand(CCSPlayerController? player, CommandInfo command)

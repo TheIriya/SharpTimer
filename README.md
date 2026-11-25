@@ -136,6 +136,8 @@ After confirming the first corner of a zone, use `.h <height>` to set the second
 
 The selected corner method remains active across start/end zones until `!4` saves successfully, then resets to player position. Failed saves retain the method. Switching methods preserves confirmed points and clears the unconfirmed shot candidate. Bonus zone corners use the same shooting behavior, while bonus respawn points always use feet. Zone editing is inactive while SharpTimer is disabled.
 
+Use `!!r` (case-insensitive) in public or team chat to perform the same reset as `!r` without broadcasting the typed command. It shares the normal reset cooldown and replay cleanup, and is inactive while SharpTimer is disabled.
+
 ### Server-record replay bot
 
 Enable both settings in `config.cfg`:

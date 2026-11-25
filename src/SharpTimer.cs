@@ -174,6 +174,8 @@ public partial class SharpTimer : BasePlugin
         RegisterEventHandler<EventBulletImpact>(OnZoneToolBulletImpact);
 
         AddCommandListener("jointeam", OnCommandJoinTeam, HookMode.Pre);
+        AddCommandListener("say", OnSilentRespawnChat, HookMode.Pre);
+        AddCommandListener("say_team", OnSilentRespawnChat, HookMode.Pre);
 
         HookUserMessage(452, OnUserMessage_RemoveSound, HookMode.Pre);
         HookUserMessage(369, OnUserMessage_RemoveSound, HookMode.Pre);
@@ -212,6 +214,8 @@ public partial class SharpTimer : BasePlugin
         DeregisterEventHandler<EventBulletImpact>(OnZoneToolBulletImpact);
 
         RemoveCommandListener("jointeam", OnCommandJoinTeam, HookMode.Pre);
+        RemoveCommandListener("say", OnSilentRespawnChat, HookMode.Pre);
+        RemoveCommandListener("say_team", OnSilentRespawnChat, HookMode.Pre);
 
         UnhookUserMessage(452, OnUserMessage_RemoveSound, HookMode.Pre);
         UnhookUserMessage(369, OnUserMessage_RemoveSound, HookMode.Pre);
