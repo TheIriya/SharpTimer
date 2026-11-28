@@ -627,6 +627,7 @@ namespace SharpTimer
             string args = command.ArgString;
 
             enableReplays = bool.TryParse(args, out bool enableReplaysValue) ? enableReplaysValue : args != "0" && enableReplays;
+            UpdateDamageHook();
         }
         
         [ConsoleCommand("sharptimer_replay_only_sr", "Only saves SR replay if true. Default value: false")]
@@ -662,6 +663,7 @@ namespace SharpTimer
             string args = command.ArgString;
 
             enableSRreplayBot = bool.TryParse(args, out bool enableSRreplayBotValue) ? enableSRreplayBotValue : args != "0" && enableSRreplayBot;
+            UpdateDamageHook();
         }
 
         [ConsoleCommand("sharptimer_replay_bot_name", "What the name of the Replay Record bot should be. Default value: SERVER RECORD REPLAY")]

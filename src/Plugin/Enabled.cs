@@ -143,7 +143,7 @@ public partial class SharpTimer
     private void UpdateDamageHook()
     {
         if (!_runtimeReady) return;
-        bool shouldHook = IsEnabled && disableDamage;
+        bool shouldHook = IsEnabled && (disableDamage || (enableReplays && enableSRreplayBot));
         if (shouldHook == _damageHookRegistered) return;
         if (shouldHook) RegisterListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
         else RemoveListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);

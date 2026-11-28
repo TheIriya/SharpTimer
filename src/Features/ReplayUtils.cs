@@ -80,7 +80,6 @@ namespace SharpTimer
                         SetMoveType(player, replayMoveType);
                     value.MovementService = new CCSPlayer_MovementServices(pawn.MovementServices.Handle);
                     bool ducked = ((PlayerFlags)replayFrame.Flags & PlayerFlags.FL_DUCKING) != 0;
-                    SetReplayPosture(pawn, value.MovementService, ducked);
 
                     bool resetCamera = playerReplays[player.Slot].CameraContinuity.Advance(pawn.Handle, plackbackTick,
                         new(replayFrame.Position!.X, replayFrame.Position.Y, replayFrame.Position.Z),
@@ -88,6 +87,9 @@ namespace SharpTimer
 
                     pawn.Teleport(ReplayVector.ToVector(replayFrame.Position!),
                         ReplayQAngle.ToQAngle(replayFrame.Rotation!), ReplayVector.ToVector(replayFrame.Speed!));
+                    // Teleport and the bot's walk movement can overwrite duck view state.
+                    // Reapply it after placing the pawn so its networked eye height follows the replay frame.
+                    SetReplayPosture(pawn, value.MovementService, ducked);
                     if (resetCamera)
                     {
                         // Snap across map teleports and replay loops instead of moving
@@ -100,7 +102,7 @@ namespace SharpTimer
                     if (pawn.CameraServices != null)
                     {
                         pawn.CameraServices.OldPlayerZ = replayFrame.Position!.Z;
-                        pawn.CameraServices.OldPlayerViewOffsetZ = pawn.ViewOffset.Z;
+                        pawn.CameraServices.OldPlayerViewOffsetZ = ducked ? 46f : 64f;
                     }
 
                     // Observers read the buttons from the frame actually applied to the pawn.
@@ -695,6 +697,16 @@ namespace SharpTimer
                 }
                 _replayBotPawnHandle = pawn.Handle;
             }
+
+            // Replay movement is driven by recorded teleports, so the bot needs no
+            // solid collision or damage interaction with map entities.
+            if (pawn.Collision.SolidType != SolidType_t.SOLID_NONE)
+            {
+                pawn.Collision.SolidType = SolidType_t.SOLID_NONE;
+                Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_nSolidType");
+            }
+            pawn.TakesDamage = false;
+
             timer.IsTimerBlocked = true;
             timer.IsRecordingReplay = false;
             ReplayPlay(bot);

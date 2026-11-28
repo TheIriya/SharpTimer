@@ -166,6 +166,8 @@ dotnet build src/SharpTimer.csproj -c Release
 
 The deployable files are placed under `Build/`, with `addons/` and `cfg/` ready to copy into `game/csgo/`. The plugin project copies configuration templates, translations, gamedata and database migrations. The tracked `src/API/TagsApi.dll` is a required build dependency.
 
+To build and package a versioned server archive on Windows, run `./scripts/Build-Release.ps1` from PowerShell. It reads the version from `src/Plugin/Globals.cs`, builds both projects in Release configuration and creates `release-artifacts/SharpTimer-v{version}.zip` with the required `addons/` and `cfg/` layout.
+
 Run the standalone regression checks:
 
 ```sh

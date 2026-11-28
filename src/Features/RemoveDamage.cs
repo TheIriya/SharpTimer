@@ -23,10 +23,12 @@ namespace SharpTimer
         private HookResult OnPlayerTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
         {
             if (!IsEnabled) return HookResult.Continue;
-            if (!IsEnabled || !disableDamage)
-                return HookResult.Continue;
 
             if (player == null || !player.IsValid)
+                return HookResult.Continue;
+
+            bool isReplayBot = replayBotSlot >= 0 && player.OriginalController.Value?.Slot == replayBotSlot;
+            if (!disableDamage && !isReplayBot)
                 return HookResult.Continue;
 
             info.Damage = 0;
